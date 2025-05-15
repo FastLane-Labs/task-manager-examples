@@ -44,7 +44,7 @@ contract GetSessionKeyDataScript is Script {
         }
     }
 
-    function run() public {
+    function run() public view {
         // Get the Getters contract address
         address gettersAddress = getDeployedGettersAddress();
         console.log("Using Getters contract at:", gettersAddress);

@@ -42,7 +42,7 @@ abstract contract Classes is Logs, Constants {
         }
     }
 
-    function _getAbility(BattleNad memory attacker, uint256 abilityIndex) internal view returns (Ability ability) {
+    function _getAbility(BattleNad memory attacker, uint256 abilityIndex) internal pure returns (Ability ability) {
         if (attacker.isMonster()) {
             revert Errors.MonstersDontHaveAbilities();
         }
@@ -92,7 +92,7 @@ abstract contract Classes is Logs, Constants {
         }
     }
 
-    function _addClassStatAdjustments(BattleNad memory combatant) internal view returns (BattleNad memory) {
+    function _addClassStatAdjustments(BattleNad memory combatant) internal pure returns (BattleNad memory) {
         if (!combatant.tracker.classStatsAdded) {
             combatant.stats = _handleAddClassStats(combatant.stats);
             combatant.tracker.classStatsAdded = true;
@@ -101,7 +101,7 @@ abstract contract Classes is Logs, Constants {
         return combatant;
     }
 
-    function _removeClassStatAdjustments(BattleNad memory combatant) internal view returns (BattleNad memory) {
+    function _removeClassStatAdjustments(BattleNad memory combatant) internal pure returns (BattleNad memory) {
         if (combatant.tracker.classStatsAdded) {
             combatant.stats = _handleRemoveClassStats(combatant.stats);
             combatant.tracker.classStatsAdded = false;
@@ -109,7 +109,7 @@ abstract contract Classes is Logs, Constants {
         return combatant;
     }
 
-    function _handleAddClassStats(BattleNadStats memory stats) internal view returns (BattleNadStats memory) {
+    function _handleAddClassStats(BattleNadStats memory stats) internal pure returns (BattleNadStats memory) {
         uint8 level = stats.level + 1 - stats.unspentAttributePoints;
         if (stats.class == CharacterClass.Elite) {
             stats.strength += uint8(level / 2 + 1);

@@ -299,6 +299,7 @@ abstract contract Handler is Balances {
         uint8 weaponID
     )
         external
+        view
         CalledBySelfInTryCatch
         NotWhileDead(player)
         NotWhileInCombat(player)
@@ -322,6 +323,7 @@ abstract contract Handler is Balances {
         uint8 armorID
     )
         external
+        view
         CalledBySelfInTryCatch
         NotWhileDead(player)
         NotWhileInCombat(player)
@@ -350,6 +352,7 @@ abstract contract Handler is Balances {
         uint256 newLuck
     )
         external
+        view
         CalledBySelfInTryCatch
         NotWhileDead(player)
         NotWhileInCombat(player)

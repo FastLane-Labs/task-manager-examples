@@ -121,16 +121,7 @@ abstract contract Instances is Combat {
         } while (gasleft() > 100_000);
     }
 
-    function _validateLocationChange(
-        BattleNad memory player,
-        uint8 newDepth,
-        uint8 newX,
-        uint8 newY
-    )
-        internal
-        pure
-        returns (BattleNad memory)
-    {
+    function _validateLocationChange(BattleNad memory player, uint8 newDepth, uint8 newX, uint8 newY) internal pure {
         // Cannot move while in combat
         if (player.stats.combatants != 0) {
             revert Errors.PlayerInCombat();
