@@ -17,6 +17,12 @@ else
   FORK_BLOCK_FLAG = --fork-block-number $(FORK_BLOCK)
 endif
 
+# Declare all PHONY targets
+.PHONY: all clean install build test test-gas format snapshot anvil size update \
+        test-deploy-battle-nads deploy-battle-nads test-execute-tasks execute-tasks \
+        fork-test-deploy-battle-nads get-session-key test-battle-nads debug-network \
+        fork-anvil replay-tx
+
 # Debug target
 debug-network:
 	@echo "NETWORK: $(NETWORK)"
@@ -24,13 +30,6 @@ debug-network:
 	@echo "RPC_URL: $(RPC_URL)"
 	@echo "FORK_BLOCK: $(FORK_BLOCK)"
 	@echo "FORK_BLOCK_FLAG: $(FORK_BLOCK_FLAG)"
-
-# Declare all PHONY targets
-.PHONY: all clean install build test test-gas format snapshot anvil size update
-.PHONY: test-deploy-battle-nads deploy-battle-nads test-execute-tasks execute-tasks
-.PHONY: fork-test-deploy-battle-nads
-.PHONY: get-session-key
-.PHONY: test-battle-nads
 
 # Default target
 all: clean install build test
@@ -102,7 +101,6 @@ deploy-battle-nads: debug-network
 		-vvv
 
 # Get Session Key Data Target
-.PHONY: get-session-key
 get-session-key: debug-network
 	@if [ -z "$(OWNER_ADDRESS)" ]; then \
 		echo "Error: OWNER_ADDRESS environment variable must be set (e.g., in .env file or exported)."; \
@@ -140,7 +138,6 @@ execute-tasks: debug-network
 		-vvv
 
 # Transaction Replay Target
-.PHONY: replay-tx
 replay-tx:
 	@if [ -z "$(TARGET_TX_HASH)" ]; then \
 		echo "Error: TARGET_TX_HASH variable must be set."; \

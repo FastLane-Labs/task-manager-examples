@@ -58,7 +58,7 @@ contract BattleNadsBaseTest is BaseTest {
     receive() external payable { }
 
     // Common Setup
-    function setUp() public override virtual {
+    function setUp() public virtual override {
         super.setUp();
 
         vm.deal(cranker, 100 ether);

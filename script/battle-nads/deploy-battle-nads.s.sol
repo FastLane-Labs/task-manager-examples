@@ -20,7 +20,7 @@ contract DeployBattleNads is Script {
     }
 
     // Add environment variables support
-    function getEnvAddress(string memory envName) internal returns (address) {
+    function getEnvAddress(string memory envName) internal view returns (address) {
         try vm.envAddress(envName) returns (address addr) {
             if (addr == address(0)) {
                 console.log("Warning: %s is set to zero address", envName);

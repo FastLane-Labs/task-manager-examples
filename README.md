@@ -13,6 +13,34 @@ Foundry consists of:
 
 https://book.getfoundry.sh/
 
+## Installation
+
+### Install Foundry
+
+```shell
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
+
+### Clone the Repository
+
+```shell
+git clone <repository-url>
+cd task-manager-examples
+```
+
+### Install Dependencies
+
+Initialize and update submodules:
+
+```shell
+# Either use make
+make install
+
+# Or run forge install directly
+forge install
+```
+
 ## Usage
 
 ### Build
