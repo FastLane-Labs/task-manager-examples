@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import { Test } from "forge-std/Test.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
+import { BaseTest } from "test/BaseTest.sol";
 import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
+import { BattleNadsWrapper } from "test/battle-nads/helpers/BattleNadsWrapper.sol";
 // BattleNads Specific Imports (Copied from original test file)
 import {
     BattleNad,
@@ -23,112 +24,14 @@ import {
 } from "src/battle-nads/Types.sol";
 import { SessionKey, SessionKeyData, GasAbstractionTracker } from "src/battle-nads/cashier/CashierTypes.sol";
 import { BattleNadsEntrypoint } from "src/battle-nads/Entrypoint.sol";
-import { BattleNadsImplementation } from "src/battle-nads/tasks/BattleNadsImplementation.sol";
 import { StatSheet } from "src/battle-nads/libraries/StatSheet.sol";
 
-// Wrapper contract for easier testing interactions
-contract BattleNadsWrapper is BattleNadsEntrypoint {
-    using StatSheet for BattleNad;
-    using StatSheet for BattleNadLite;
-
-    uint256 public immutable START_BLOCK;
-    mapping(address => uint256) public lastBlocks;
-
-    constructor(address taskManager, address shMonad) BattleNadsEntrypoint(taskManager, shMonad) {
-        START_BLOCK = block.number;
-    }
-
-    // --- Wrapper Helper Functions (Copied from original test file) ---
-
-    function getLiteCombatants(address owner) public view returns (BattleNadLite[] memory liteCombatants) {
-        (,,, liteCombatants,,,,,,,,,) = pollForFrontendData(owner, block.number - 1);
-    }
-
-    function getCombatantBattleNads(address owner) public view returns (BattleNad[] memory combatants) {
-        BattleNadLite[] memory liteCombatants = getLiteCombatants(owner);
-        combatants = new BattleNad[](liteCombatants.length);
-        for (uint256 i; i < liteCombatants.length; i++) {
-            bytes32 combatantID = liteCombatants[i].id;
-            combatants[i] = getBattleNad(combatantID);
-        }
-        return combatants;
-    }
-
-    function printLogs(address owner) public returns (DataFeed[] memory dataFeeds) {
-        uint256 startBlock = lastBlocks[owner];
-        if (startBlock < START_BLOCK) {
-            startBlock = START_BLOCK;
-        }
-        dataFeeds = getDataFeed(owner, startBlock, block.number);
-        lastBlocks[owner] = block.number;
-
-        for (uint256 i = 0; i < dataFeeds.length; i++) {
-            DataFeed memory dataFeed = dataFeeds[i];
-            if (dataFeed.logs.length > 0) {
-                console.log("\nBlock Number:", dataFeed.blockNumber);
-                for (uint256 j = 0; j < dataFeed.logs.length; j++) {
-                    Log memory logEntry = dataFeed.logs[j];
-                    if (logEntry.logType == LogType.Combat) {
-                        // Broke down into multiple calls (<= 4 args each)
-                        console.log("  Combat:", logEntry.mainPlayerIndex, "->", logEntry.otherPlayerIndex);
-                        console.log("    Dmg:", logEntry.damageDone, "Heal:", logEntry.healthHealed);
-                        console.log("    Died:", logEntry.targetDied);
-                    } else if (logEntry.logType == LogType.InstigatedCombat) {
-                        console.log("  InitiateCombat:", logEntry.mainPlayerIndex, "->", logEntry.otherPlayerIndex);
-                    } else if (logEntry.logType == LogType.EnteredArea) {
-                        console.log("  EnteredArea:", logEntry.mainPlayerIndex);
-                    } else if (logEntry.logType == LogType.LeftArea) {
-                        console.log("  LeftArea:", logEntry.mainPlayerIndex);
-                    } else if (logEntry.logType == LogType.Ability) {
-                        // Broke down into multiple calls (<= 4 args each)
-                        console.log(
-                            "  Ability:", logEntry.mainPlayerIndex, "Type:", uint8(Ability(logEntry.lootedWeaponID))
-                        );
-                        console.log("    Stage:", logEntry.lootedArmorID, "Dmg:", logEntry.damageDone);
-                        console.log("    Heal:", logEntry.healthHealed);
-                    } else if (logEntry.logType == LogType.Ascend) {
-                        console.log("  Ascend:", logEntry.mainPlayerIndex, "Value:", logEntry.value);
-                    }
-                }
-            }
-        }
-        return dataFeeds;
-    }
-
-    function printBattleNad(BattleNad memory battleNad) public pure {
-        console.log("");
-        console.log("BattleNad: ", battleNad.name, "id:", uint256(battleNad.id)); // 4 args - OK
-        console.log("  Owner:", battleNad.owner); // 2 args - OK
-        console.log("  Class:", uint8(battleNad.stats.class)); // 2 args - OK
-        // Broke down location log
-        console.log("  Location (d,x,y,i):", battleNad.stats.depth, battleNad.stats.x);
-        console.log("    ", battleNad.stats.y, battleNad.stats.index);
-        // Broke down stats log
-        console.log(
-            "  Stats (lvl,hp,str,vit):", battleNad.stats.level, battleNad.stats.health, battleNad.stats.strength
-        );
-        console.log(
-            "     (vit,dex,qui,stu):", battleNad.stats.vitality, battleNad.stats.dexterity, battleNad.stats.quickness
-        );
-        console.log("     (stu,lck):", battleNad.stats.sturdiness, battleNad.stats.luck);
-        // Broke down combat log
-        console.log("  Combat (tgts,sumLvl):", battleNad.stats.combatants, battleNad.stats.sumOfCombatantLevels);
-        console.log("     (map,next):", battleNad.stats.combatantBitMap, battleNad.stats.nextTargetIndex);
-        // Broke down equip log (was already ok, but for consistency)
-        console.log("  Equip (wep,arm):", battleNad.stats.weaponID, battleNad.stats.armorID); // 4 args - OK
-        console.log("  Task:", battleNad.activeTask); // 2 args - OK
-        console.log("  Balance:", battleNad.inventory.balance); // 2 args - OK
-    }
-}
-
 // Base test contract
-contract BattleNadsBaseTest is Test {
+contract BattleNadsBaseTest is BaseTest {
     using StatSheet for BattleNad;
     using StatSheet for BattleNadLite;
 
     BattleNadsWrapper public battleNads;
-    ITaskManager public immutable taskManager = ITaskManager(0x5277C4c882BA9425E6615955b17Af34030432f27);
-    address public immutable shMonad = address(0x3a98250F98Dd388C211206983453837C8365BDc1);
 
     // Common Actors
     address public constant cranker = address(71);
@@ -151,21 +54,21 @@ contract BattleNadsBaseTest is Test {
 
     uint256 public constant EXPECTED_ASCEND_DELAY = 200; //max delay for ascend task
 
-    // Receive function for ETH payments
+    // Receive function for MON payments
     receive() external payable { }
 
     // Common Setup
-    function setUp() public virtual {
+    function setUp() public override virtual {
+        super.setUp();
+
         vm.deal(cranker, 100 ether);
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
         vm.deal(user3, 100 ether);
-        vm.deal(user4, 100 ether); // Deal ETH to new user
+        vm.deal(user4, 100 ether); // Deal MON to new user
 
         battleNads = new BattleNadsWrapper(address(taskManager), address(shMonad));
     }
-
-    // --- Common Helper Functions (Copied/Adapted from original test file) ---
 
     /// @notice Advances blocks and executes tasks until target block is reached.
     function _rollForward(uint256 n) internal {

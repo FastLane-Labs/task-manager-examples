@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IShMonad } from "../interfaces/shmonad/IShMonad.sol";
 import {
     BattleNad,
     BattleNadStats,
@@ -17,10 +19,6 @@ import { Cashier } from "./cashier/Cashier.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
-
-import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
-import { IShMonad } from "../interfaces/shmonad/IShMonad.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { Instances } from "./Instances.sol";
 

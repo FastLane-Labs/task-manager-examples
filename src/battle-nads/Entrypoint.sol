@@ -8,8 +8,6 @@ import { SessionKey, GasAbstractionTracker } from "./cashier/CashierTypes.sol";
 import { Getters } from "./Getters.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
-
-import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
 import { Equipment } from "./libraries/Equipment.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 

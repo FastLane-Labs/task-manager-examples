@@ -1,13 +1,10 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { BattleNad, BattleNadStats, Inventory, Weapon, Armor, StorageTracker } from "../Types.sol";
-
-import { Errors } from "../libraries/Errors.sol";
-
 import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
-import { IShMonad } from "../../interfaces/shmonad/IShMonad.sol";
 import { ITaskHandler } from "../interfaces/ITaskHandler.sol";
+import { Errors } from "../libraries/Errors.sol";
+import { BattleNad, BattleNadStats, Inventory, Weapon, Armor, StorageTracker } from "../Types.sol";
 
 contract BattleNadsImplementation {
     error MustBeDelegated();

@@ -21,8 +21,6 @@ import { SessionKey, SessionKeyData, GasAbstractionTracker } from "./cashier/Cas
 import { TaskHandler } from "./TaskHandler.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
-
-import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
 import { Equipment } from "./libraries/Equipment.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 import { Names } from "./libraries/Names.sol";

@@ -27,16 +27,9 @@ debug-network:
 
 # Declare all PHONY targets
 .PHONY: all clean install build test test-gas format snapshot anvil size update
-.PHONY: deploy test-deploy fork-anvil fork-test-deploy
-.PHONY: deploy-address-hub deploy-shmonad deploy-taskmanager deploy-paymaster deploy-sponsored-executor
-.PHONY: upgrade-address-hub upgrade-shmonad upgrade-taskmanager upgrade-paymaster
-.PHONY: test-deploy-address-hub test-deploy-shmonad test-deploy-taskmanager test-deploy-paymaster test-deploy-sponsored-executor
-.PHONY: test-upgrade-address-hub test-upgrade-shmonad test-upgrade-taskmanager test-upgrade-paymaster
-.PHONY: fork-test-deploy-address-hub fork-test-deploy-shmonad fork-test-deploy-taskmanager fork-test-deploy-paymaster fork-test-deploy-sponsored-executor
-.PHONY: fork-test-upgrade-address-hub fork-test-upgrade-shmonad fork-test-upgrade-taskmanager fork-test-upgrade-paymaster
-.PHONY: request-tokens get-paymaster-info scenario_test_upgrade
 .PHONY: test-deploy-battle-nads deploy-battle-nads test-execute-tasks execute-tasks
-.PHONY: get-character-id check-get-character-id-vars
+.PHONY: fork-test-deploy-battle-nads
+.PHONY: get-session-key
 .PHONY: test-battle-nads
 
 # Default target
