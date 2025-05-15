@@ -18,9 +18,9 @@ import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 
-import { ITaskManager } from "../../interfaces/ITaskManager.sol";
-import { IShMonad } from "../../../shmonad/interfaces/IShMONAD.sol";
-import { IERC20 } from "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
+import { IShMonad } from "../interfaces/shmonad/IShMonad.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { Instances } from "./Instances.sol";
 

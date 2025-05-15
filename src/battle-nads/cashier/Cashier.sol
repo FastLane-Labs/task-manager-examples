@@ -2,8 +2,8 @@
 pragma solidity 0.8.28;
 
 import { ITaskManager } from "../../../interfaces/ITaskManager.sol";
-import { IShMonad } from "../../../../shmonad/interfaces/IShMONAD.sol";
-import { IERC20 } from "openzeppelin-contracts/token/ERC20/IERC20.sol";
+import { IShMonad } from "../../interfaces/shmonad/IShMonad.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { SafeTransferLib } from "solady/utils/SafeTransferLib.sol";
 
