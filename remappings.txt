@@ -1,0 +1,2 @@
+task-manager/=lib/fastlane-task-manager/src
+forge-std/=lib/forge-std/src/
