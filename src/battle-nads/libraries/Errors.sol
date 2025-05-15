@@ -1,0 +1,56 @@
+//SPDX-License-Identifier: Unlicensed
+pragma solidity 0.8.28;
+
+library Errors {
+    error CreationStatsMustSumToTarget(uint256 actualSum, uint256 targetSum);
+    error CreationStatsMustAllBeAboveMin(uint8 min);
+    error InvalidCharacterOwner(bytes32 characterID, address owner);
+    error NoZeroWeapon();
+    error NoZeroArmor();
+    error WeaponIDNotIncluded(uint8 id);
+    error ArmorIDNotIncluded(uint8 id);
+    error WeaponNotInInventory(uint8 id);
+    error ArmorNotInInventory(uint8 id);
+    error NameAlreadyExists(bytes32 nameHash);
+    error OwnerAlreadyExists(address owner);
+    error SessionKeyAlreadyExists(address sessionKey);
+    error TargetBitmapInvalid(uint256 targetBitmap);
+    error TargetNotInTargetBitmap(uint8 target, uint256 targetBitmap);
+    error PlayerInCombat();
+    error CannotAttackDueToLevelCap();
+    error InvalidDepthChange(uint8 currentDepth, uint8 nextDepth);
+    error MultiAxisMovement();
+    error InvalidLocation(uint8 newDepth, uint8 newX, uint8 newY);
+    error InvalidLocationChange(uint8 newDepth, uint8 newX, uint8 newY);
+    error InvalidLocationIndex(bytes32 combatantID);
+    error InvalidTargetIndex(uint256 targetIndex);
+    error NoLocationIndexFound(uint256 index, uint256 combinedBitmap);
+    error InvalidLocationBitmap(uint256 bitmap, uint256 bit);
+    error StatSheetDoesNotExist(bytes32 id);
+    error CombatantDoesNotExist(uint8 depth, uint8 x, uint8 y, uint8 index);
+    error AreaFull(uint8 depth, uint8 x, uint8 y);
+    error InvalidCaller(address caller);
+    error TaskNotScheduled();
+    error CharacterNotOwned(bytes32 id);
+    error BondedBalanceTooLow(uint256 balance, uint256 needed);
+    error InvalidTaskCostEstimate(uint256 estimate, uint256 actual);
+    error TaskNotRescheduled();
+    error SpawnTaskNotScheduled();
+    error UnableToFindOpenInstance();
+    error CantControlMonster(bytes32 id);
+    error NotEnoughGas(uint256 gasLeft, uint256 gasRequired);
+    error InsufficientStatPoints(uint256 pointsAvailable, uint256 pointsRequested);
+    error InsufficientBalanceForSessionKey();
+    error CantMoveInCombat();
+    error CantProcessWhileDead();
+    error InvalidChatMessageLength(uint256 length);
+    error TooManyLogs();
+    error AlreadyInCombat(uint8 attackerIndex, uint8 defenderIndex);
+    error AbilityDoesntExist();
+    error MonstersDontHaveAbilities();
+    error AbilityStillOnCooldown(uint256 cooldownExpiration);
+    error AbilityMustHaveTarget();
+    error NameTooLong(uint256 nameLength);
+    error NameTooShort(uint256 nameLength);
+    error AbilityCantHaveTarget();
+}
