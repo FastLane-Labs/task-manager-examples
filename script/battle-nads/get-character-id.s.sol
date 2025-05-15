@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
-import { Getters } from "../../src/task-manager/examples/battle-nads/Getters.sol";
+import { Getters } from "../../src/battle-nads/Getters.sol";
 
 contract GetCharacterIDScript is Script {
     /**

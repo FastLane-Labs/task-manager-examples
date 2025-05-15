@@ -5,8 +5,8 @@ import { BattleNad, BattleNadStats, Inventory, Weapon, Armor, StorageTracker } f
 
 import { Errors } from "../libraries/Errors.sol";
 
-import { ITaskManager } from "../../../interfaces/ITaskManager.sol";
-import { IShMonad } from "../../../../shmonad/interfaces/IShMONAD.sol";
+import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
+import { IShMonad } from "../../interfaces/shmonad/IShMonad.sol";
 import { ITaskHandler } from "../interfaces/ITaskHandler.sol";
 
 contract BattleNadsImplementation {

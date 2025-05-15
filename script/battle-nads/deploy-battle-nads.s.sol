@@ -6,6 +6,8 @@ import "forge-std/console.sol";
 
 import { BattleNadsEntrypoint } from "../../src/battle-nads/Entrypoint.sol";
 import { BattleNadsImplementation } from "../../src/battle-nads/tasks/BattleNadsImplementation.sol";
+import { IAddressHub } from "@fastlane-task-manager/src/interfaces/common/IAddressHub.sol";
+import { Directory } from "@fastlane-task-manager/src/interfaces/common/Directory.sol";
 
 contract DeployBattleNads is Script {
     // Deployment addresses will be stored here
@@ -68,7 +70,7 @@ contract DeployBattleNads is Script {
         console.log("AddressHub address:", addressHubAddress);
 
         // Get the AddressHub instance
-        AddressHub hub = AddressHub(addressHubAddress);
+        IAddressHub hub = IAddressHub(addressHubAddress);
 
         // Get TaskManager proxy address from AddressHub
         address taskManager = hub.getAddressFromPointer(Directory._TASK_MANAGER);

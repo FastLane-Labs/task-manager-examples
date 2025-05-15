@@ -3,9 +3,9 @@ pragma solidity 0.8.28;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
-import { Getters } from "../../src/task-manager/examples/battle-nads/Getters.sol";
-import { SessionKeyData } from "../../src/task-manager/examples/battle-nads/cashier/CashierTypes.sol";
-import { BattleNad, BattleNadLite, DataFeed } from "../../src/task-manager/examples/battle-nads/Types.sol";
+import { Getters } from "../../src/battle-nads/Getters.sol";
+import { SessionKeyData } from "../../src/battle-nads/cashier/CashierTypes.sol";
+import { BattleNad, BattleNadLite, DataFeed } from "../../src/battle-nads/Types.sol";
 
 contract GetSessionKeyDataScript is Script {
     uint256 BLOCK_OFFSET = 1;

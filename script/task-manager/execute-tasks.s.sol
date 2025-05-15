@@ -4,9 +4,9 @@ pragma solidity 0.8.28;
 import "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 
-import { AddressHub } from "../../src/common/AddressHub.sol";
-import { Directory } from "../../src/common/Directory.sol";
-import { ITaskManager } from "../../src/task-manager/interfaces/ITaskManager.sol";
+import { IAddressHub } from "@fastlane-task-manager/src/interfaces/common/IAddressHub.sol";
+import { Directory } from "@fastlane-task-manager/src/interfaces/common/Directory.sol";
+import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
 
 /**
  * @title ExecuteTasksScript
@@ -26,7 +26,7 @@ contract ExecuteTasksScript is Script {
         address addressHub = vm.envAddress("ADDRESS_HUB");
 
         // Get the AddressHub instance
-        AddressHub hub = AddressHub(addressHub);
+        IAddressHub hub = IAddressHub(addressHub);
 
         // Get TaskManager proxy address from AddressHub
         address taskManagerAddress = hub.getAddressFromPointer(Directory._TASK_MANAGER);
