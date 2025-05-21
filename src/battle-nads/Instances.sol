@@ -198,8 +198,8 @@ abstract contract Instances is Combat {
         }
 
         uint256 cornerIndicator = shallowerDepth % 4;
-        uint8 traverse = uint8(10 + (shallowerDepth / 4)); 
-        // Max depth is 50. 
+        uint8 traverse = uint8(10 + (shallowerDepth / 4));
+        // Max depth is 50.
         // 50 > 25 + (10+13) > 25 - (10+13) > 1
         if (cornerIndicator == 0) {
             x -= traverse;

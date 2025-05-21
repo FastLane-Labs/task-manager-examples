@@ -26,13 +26,17 @@ import { Instances } from "./Instances.sol";
 abstract contract Balances is GasRelayBase, Instances {
     using StatSheet for BattleNad;
 
-    uint256 internal transient t_unsafeTaskEstimate;
-
     constructor(
         address taskManager,
         address shMonad
     )
-        GasRelayBase(taskManager, shMonad, MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS + BASE_TX_GAS_COST + MIN_REMAINDER_GAS_BUFFER, 32, 2)
+        GasRelayBase(
+            taskManager,
+            shMonad,
+            MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS + BASE_TX_GAS_COST + MIN_REMAINDER_GAS_BUFFER,
+            32,
+            2
+        )
     { }
 
     function _allocatePlayerBuyIn(BattleNad memory character) internal returns (BattleNad memory) {
@@ -173,52 +177,24 @@ abstract contract Balances is GasRelayBase, Instances {
         }
     }
 
-    // NOTE: Does not increase after a task has been scheduled - just use for gas balance estimates,
-    // do not use for actual task cost estimates. This shortcut is to save gas. 
-    function _unsafeEstimateTaskAmount() internal returns (uint256) {
-        uint256 estimatedAmount = t_unsafeTaskEstimate;
-        if (estimatedAmount == 0) {
-            estimatedAmount = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
-            uint256 estimatedShares = _convertMonToShMon(estimatedAmount);
-            if (estimatedAmount < type(uint128).max && estimatedShares < type(uint128).max) {
-                t_unsafeTaskEstimate = estimatedAmount | (estimatedShares<<128);
-            }
-        } else {
-            estimatedAmount &= 0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff;
-        }
-        return estimatedAmount;
-    }
-
-    // NOTE: Does not increase after a task has been scheduled - just use for gas balance estimates,
-    // do not use for actual task cost estimates. This shortcut is to save gas. 
-    function _unsafeEstimateTaskShares() internal returns (uint256) {
-        uint256 estimatedShares = t_unsafeTaskEstimate;
-        if (estimatedShares == 0) {
-            uint256 estimatedAmount = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
-            estimatedShares = _convertMonToShMon(estimatedAmount);
-            if (estimatedAmount < type(uint128).max && estimatedShares < type(uint128).max) {
-                t_unsafeTaskEstimate = estimatedAmount | (estimatedShares<<128);
-            }
-        } else {
-            estimatedShares>>=128;
-        }
-        return estimatedShares;
-    }
-
     function _getBuyInAmountInShMON() internal view returns (uint256 minBondedShares) {
-        minBondedShares = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+        minBondedShares = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT
+            + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getBuyInAmountInMON() internal view returns (uint256 minAmount) {
-        minAmount = _convertShMonToMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT) + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+        minAmount = _convertShMonToMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT)
+            + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
     }
 
     function _getRecommendedBalanceInShMON() internal view returns (uint256 minBondedShares) {
-        minBondedShares = MIN_BONDED_AMOUNT + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+        minBondedShares =
+            MIN_BONDED_AMOUNT + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getRecommendedBalanceInMON() internal view returns (uint256 minAmount) {
-        minAmount = _convertShMonToMon(MIN_BONDED_AMOUNT) + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+        minAmount =
+            _convertShMonToMon(MIN_BONDED_AMOUNT) + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
     }
 
     // If a player's bonded balance drops below this amount and they can't reschedule a task then

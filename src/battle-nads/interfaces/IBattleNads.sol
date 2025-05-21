@@ -17,7 +17,11 @@ import {
     Log,
     LogType
 } from "../Types.sol";
-import { SessionKey, SessionKeyData, GasAbstractionTracker  } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+import {
+    SessionKey,
+    SessionKeyData,
+    GasAbstractionTracker
+} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 
 interface IBattleNads {
     // Gas Relay interface

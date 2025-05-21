@@ -101,7 +101,12 @@ abstract contract Classes is Logs, Constants {
         return combatant;
     }
 
-    function _removeClassStatAdjustments(BattleNad memory combatant) internal pure override returns (BattleNad memory) {
+    function _removeClassStatAdjustments(BattleNad memory combatant)
+        internal
+        pure
+        override
+        returns (BattleNad memory)
+    {
         if (combatant.tracker.classStatsAdded) {
             combatant.stats = _handleRemoveClassStats(combatant.stats);
             combatant.tracker.classStatsAdded = false;

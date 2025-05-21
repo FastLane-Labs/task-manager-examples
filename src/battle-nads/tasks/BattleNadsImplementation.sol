@@ -25,7 +25,7 @@ contract BattleNadsImplementation {
         (bool reschedule, uint256 nextBlock, uint256 maxPayment) = ITaskHandler(_BATTLE_NADS).processTurn(characterID);
         if (!reschedule) {
             return;
-        } 
+        }
 
         // Reschedule the task
         (bool rescheduled, uint256 executionCost, bytes32 taskId) =

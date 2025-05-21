@@ -42,7 +42,6 @@ contract TaskHandler is Handler {
 
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
-
             // Calculate the maximum payment
             (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
 
@@ -206,7 +205,7 @@ contract TaskHandler is Handler {
         }
 
         // Get max task payment
-        uint256 maxPayment = _amountBondedToThis(combatant.owner)/2;
+        uint256 maxPayment = _amountBondedToThis(combatant.owner) / 2;
 
         // Calculate the maximum payment
         bytes memory data = abi.encodeCall(IBattleNadsImplementation.spawn, (combatant.id));

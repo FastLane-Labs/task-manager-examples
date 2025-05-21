@@ -125,7 +125,7 @@ abstract contract Handler is Balances {
 
         // Check for aggro
         (uint8 monsterIndex, bool newMonster) = _checkForAggro(player, area, randomSeed, prevDepth);
-      
+
         // Log that we entered the new area
         _logEnteredArea(player, monsterIndex);
 
@@ -157,7 +157,6 @@ abstract contract Handler is Balances {
         if (newMonster) {
             uint256 targetBlock = block.number + _cooldown(monster.stats);
             (monster, scheduledTask) = _createCombatTask(monster, targetBlock);
-
         } else {
             // If task is no longer active, start a new one
             if (characterTasks[monster.id] == address(0)) {
@@ -649,18 +648,17 @@ abstract contract Handler is Balances {
         uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
 
         uint256 combatantBitmap = uint256(combatant.stats.combatantBitMap);
-        uint256 combatantBit = 1<<uint256(combatant.stats.index);
+        uint256 combatantBit = 1 << uint256(combatant.stats.index);
 
         // Flip off this combatant's own bit
         combinedBitmap &= ~combatantBit;
 
         // Can't have an index of 0, start i at 1.
         for (uint256 i = 1; i < 64; i++) {
-            uint256 indexBit = 1<<i;
+            uint256 indexBit = 1 << i;
 
             // Check if in combat
             if (combatantBitmap & indexBit != 0) {
-
                 // If in combat, check if opponent exists
                 if (combinedBitmap & indexBit != 0) {
                     BattleNad memory opponent = _loadCombatant(area, i);
@@ -670,7 +668,7 @@ abstract contract Handler is Balances {
                     if (opponentBitmap & combatantBit == 0) {
                         // pass (remove opponent from this char's combat bitmap)
 
-                    // CASE: Opponent is dead   
+                        // CASE: Opponent is dead
                     } else if (opponent.isDead()) {
                         // Remove this char from opponent's bitmap
                         opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
@@ -678,7 +676,7 @@ abstract contract Handler is Balances {
                         _storeBattleNad(opponent);
                         //pass (remove opponent from this char's combat bitmap)
 
-                    // CASE: Opponent doesn't have an active task going
+                        // CASE: Opponent doesn't have an active task going
                     } else if (opponent.activeTask == address(0)) {
                         // Remove this char from opponent's bitmap
                         opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
@@ -686,15 +684,15 @@ abstract contract Handler is Balances {
                         _storeBattleNad(opponent);
                         // pass (remove opponent from this char's combat bitmap)
 
-                    // CASE: We're forcibly removing opponent from combat - most likely
-                    // because combatant is being forceKilled / despawned
+                        // CASE: We're forcibly removing opponent from combat - most likely
+                        // because combatant is being forceKilled / despawned
                     } else if (forceRemoveCombat) {
                         opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
                         opponent.tracker.updateStats = true;
                         _storeBattleNad(opponent);
                         // pass (remove opponent from this char's combat bitmap)
 
-                    // CASE: Opponent is legitimately in combat with character
+                        // CASE: Opponent is legitimately in combat with character
                     } else {
                         continue;
                     }

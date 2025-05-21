@@ -16,14 +16,18 @@ import {
     DataFeed
 } from "./Types.sol";
 
-import { SessionKey, SessionKeyData, GasAbstractionTracker  } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+import {
+    SessionKey,
+    SessionKeyData,
+    GasAbstractionTracker
+} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 
 import { TaskHandler } from "./TaskHandler.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { Equipment } from "./libraries/Equipment.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
-import { Names } from "./libraries/Names.sol";	
+import { Names } from "./libraries/Names.sol";
 
 contract Getters is TaskHandler {
     using Equipment for BattleNad;
@@ -133,7 +137,7 @@ contract Getters is TaskHandler {
         } else {
             character.stats.health = 0;
         }
-        
+
         if (!character.isMonster()) {
             character.name = characterNames[characterID];
         }
@@ -282,8 +286,8 @@ contract Getters is TaskHandler {
         uint256 combatantBitmap = uint256(stats.combatantBitMap);
 
         // Filter out the player character
-        // NOTE: It should never be in combat with itself - this is tautological 
-        combatantBitmap &= ~(1<<uint256(stats.index));
+        // NOTE: It should never be in combat with itself - this is tautological
+        combatantBitmap &= ~(1 << uint256(stats.index));
 
         bytes32[] memory combatantIDsUncompressed = new bytes32[](64);
 
@@ -330,7 +334,7 @@ contract Getters is TaskHandler {
         uint256 combinedBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
 
         // Filter out the player character
-        combinedBitmap &= ~(1<<uint256(stats.index));
+        combinedBitmap &= ~(1 << uint256(stats.index));
 
         uint256 j;
         for (uint256 i; i < 64; i++) {
