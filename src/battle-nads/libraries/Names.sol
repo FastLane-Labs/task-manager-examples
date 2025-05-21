@@ -29,8 +29,14 @@ library Names {
         ) {
             string memory unadjustedName = getMonsterName(self.id, self.stats.level);
             self.name = getMonsterNameAdjustment(unadjustedName, self.stats.class, self.stats.level);
-        } else {
+        } else if (
+            self.stats.class == CharacterClass.Bard || self.stats.class == CharacterClass.Warrior
+                || self.stats.class == CharacterClass.Rogue || self.stats.class == CharacterClass.Monk
+                || self.stats.class == CharacterClass.Sorcerer
+        ) {
             self.name = getPlayerNameAdjustment(self.name, self.stats.class, self.stats.level);
+        } else {
+            self.name = "MISSING CLASS";
         }
         return self;
     }

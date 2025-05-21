@@ -5,7 +5,7 @@ pragma solidity ^0.8.19;
 import { BattleNadsBaseTest } from "./helpers/BattleNadsBaseTest.sol";
 
 // Specific imports for this test file
-import { SessionKeyData } from "src/battle-nads/cashier/CashierTypes.sol";
+import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 import { BattleNad, DataFeed, LogType } from "src/battle-nads/Types.sol";
 import { Errors } from "src/battle-nads/libraries/Errors.sol";
 import { console } from "forge-std/console.sol";

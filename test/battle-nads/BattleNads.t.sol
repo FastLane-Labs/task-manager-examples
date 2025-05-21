@@ -20,11 +20,7 @@ import {
     CharacterClass	
 } from "src/battle-nads/Types.sol";	
 
-import {	
-    SessionKey,	
-    SessionKeyData,	
-    GasAbstractionTracker	
-} from "src/battle-nads/cashier/CashierTypes.sol";	
+import { SessionKey, SessionKeyData, GasAbstractionTracker  } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 
 import { BattleNadsEntrypoint } from "src/battle-nads/Entrypoint.sol";	
 import { BattleNadsImplementation } from "src/battle-nads/tasks/BattleNadsImplementation.sol";	
@@ -36,7 +32,7 @@ import {console} from "forge-std/console.sol";
 
 contract BattleNadsTest is BattleNadsBaseTest {	
     
-    function test_BattleNadCreation() public {
+    function test_BattleNadCreation2() public {
         uint256 targetBlock = block.number;
         uint256 estimatedCreationCost = battleNads.estimateBuyInAmountInMON() * 120 / 100;
         console.log("estimatedCreationCost", estimatedCreationCost);
@@ -123,17 +119,32 @@ contract BattleNadsTest is BattleNadsBaseTest {
         i = 0;	
 
         vm.prank(userSessionKey3);	
-        battleNads.useAbility(character3, monster.stats.index, 2);	
+        // battleNads.useAbility(character3, monster.stats.index, 2);	
 
-        while (i < 300) {	
+        while (i < 25) {	
 
             player = _battleNad(3);	
             monster = _battleNad(opponentID);	
 
             uint256 newPlayerHealth = uint256(player.stats.health);	
-            uint256 newOpponentHealth = uint256(monster.stats.health);	
+            uint256 newOpponentHealth = uint256(monster.stats.health);
+            /*
+            console.log("");	
+            console.log("block number", block.number);
+            console.log("newPlayerHealth", newPlayerHealth);
+            console.log("newOpponentHealth", newOpponentHealth);
+            */
 
             if (playerHealth != newPlayerHealth || opponentHealth != newOpponentHealth) {	
+                
+                /*
+                if (playerHealth > newPlayerHealth) {
+                    console.log("damage to player", playerHealth - newPlayerHealth);
+                }
+                if (opponentHealth > newOpponentHealth) {
+                    console.log("damage to monster", opponentHealth - newOpponentHealth);
+                }
+                */
 
                 playerHealth = newPlayerHealth;	
                 opponentHealth = newOpponentHealth;	
@@ -151,7 +162,9 @@ contract BattleNadsTest is BattleNadsBaseTest {
 
             ++i;	
 
-            _rollForward(1);	
+            console.log("===");
+
+            _rollForward(2);	
             battleNads.printLogs(user3);	
             _topUpBonded(3);	
         }	

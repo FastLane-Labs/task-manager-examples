@@ -57,7 +57,7 @@ abstract contract Character is Abilities {
         maxHealth = baseHealth + (uint256(stats.vitality) * VITALITY_HEALTH_MODIFIER)
             + (uint256(stats.sturdiness) * STURDINESS_HEALTH_MODIFIER);
 
-        maxHealth += uint256((uint256(stats.level) - 1) * LEVEL_HEALTH_MODIFIER);
+        maxHealth += uint256((uint256(stats.level)) * LEVEL_HEALTH_MODIFIER);
 
         if (
             stats.class == CharacterClass.Basic || stats.class == CharacterClass.Elite

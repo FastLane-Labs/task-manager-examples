@@ -15,7 +15,7 @@ import {
     PayoutTracker
 } from "./Types.sol";
 
-import { Cashier } from "./cashier/Cashier.sol";
+import { GasRelayBase } from "lib/fastlane-contracts/src/common/relay/GasRelayBase.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
@@ -23,14 +23,16 @@ import { StatSheet } from "./libraries/StatSheet.sol";
 import { Instances } from "./Instances.sol";
 
 // These are the entrypoint functions called by the tasks
-abstract contract Balances is Cashier, Instances {
+abstract contract Balances is GasRelayBase, Instances {
     using StatSheet for BattleNad;
+
+    uint256 internal transient t_unsafeTaskEstimate;
 
     constructor(
         address taskManager,
         address shMonad
     )
-        Cashier(taskManager, shMonad, MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS + BASE_TX_GAS_COST + MIN_REMAINDER_GAS_BUFFER)
+        GasRelayBase(taskManager, shMonad, MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS + BASE_TX_GAS_COST + MIN_REMAINDER_GAS_BUFFER, 32, 2)
     { }
 
     function _allocatePlayerBuyIn(BattleNad memory character) internal returns (BattleNad memory) {
@@ -171,23 +173,63 @@ abstract contract Balances is Cashier, Instances {
         }
     }
 
+    // NOTE: Does not increase after a task has been scheduled - just use for gas balance estimates,
+    // do not use for actual task cost estimates. This shortcut is to save gas. 
+    function _unsafeEstimateTaskAmount() internal returns (uint256) {
+        uint256 estimatedAmount = t_unsafeTaskEstimate;
+        if (estimatedAmount == 0) {
+            estimatedAmount = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
+            uint256 estimatedShares = _convertMonToShMon(estimatedAmount);
+            if (estimatedAmount < type(uint128).max && estimatedShares < type(uint128).max) {
+                t_unsafeTaskEstimate = estimatedAmount | (estimatedShares<<128);
+            }
+        } else {
+            estimatedAmount &= 0x00000000000000000000000000000000ffffffffffffffffffffffffffffffff;
+        }
+        return estimatedAmount;
+    }
+
+    // NOTE: Does not increase after a task has been scheduled - just use for gas balance estimates,
+    // do not use for actual task cost estimates. This shortcut is to save gas. 
+    function _unsafeEstimateTaskShares() internal returns (uint256) {
+        uint256 estimatedShares = t_unsafeTaskEstimate;
+        if (estimatedShares == 0) {
+            uint256 estimatedAmount = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
+            estimatedShares = _convertMonToShMon(estimatedAmount);
+            if (estimatedAmount < type(uint128).max && estimatedShares < type(uint128).max) {
+                t_unsafeTaskEstimate = estimatedAmount | (estimatedShares<<128);
+            }
+        } else {
+            estimatedShares>>=128;
+        }
+        return estimatedShares;
+    }
+
     function _getBuyInAmountInShMON() internal view returns (uint256 minBondedShares) {
-        uint256 estimate = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
-        minBondedShares = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT + (8 * (_convertMonToShMon(estimate) + 1));
+        minBondedShares = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getBuyInAmountInMON() internal view returns (uint256 minAmount) {
-        uint256 estimate = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
-        minAmount = _convertShMonToMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT + 1) + (8 * (estimate + 1));
+        minAmount = _convertShMonToMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT) + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
     }
 
     function _getRecommendedBalanceInShMON() internal view returns (uint256 minBondedShares) {
-        uint256 estimate = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS) + 1;
-        minBondedShares = MIN_BONDED_AMOUNT + (8 * (_convertMonToShMon(estimate) + 1));
+        minBondedShares = MIN_BONDED_AMOUNT + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getRecommendedBalanceInMON() internal view returns (uint256 minAmount) {
-        uint256 estimate = _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
-        minAmount = _convertShMonToMon(MIN_BONDED_AMOUNT + 1) + (8 * (estimate + 1));
+        minAmount = _convertShMonToMon(MIN_BONDED_AMOUNT) + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+    }
+
+    // If a player's bonded balance drops below this amount and they can't reschedule a task then
+    // they are removed from combat and at risk of deletion
+    function _deletionFloorShares() internal view returns (uint256 minShares) {
+        minShares = _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)) * 2;
+    }
+
+    // Override the _minBondedShares value in GasRelayBase.sol so that the session key doesn't
+    // take shMON that is committed to be used by the task manager for combat automation
+    function _minBondedShares(address account) internal view override returns (uint256 shares) {
+        shares = _getRecommendedBalanceInShMON();
     }
 }

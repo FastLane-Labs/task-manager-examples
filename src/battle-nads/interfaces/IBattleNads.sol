@@ -17,10 +17,10 @@ import {
     Log,
     LogType
 } from "../Types.sol";
-import { SessionKeyData } from "../cashier/CashierTypes.sol";
+import { SessionKey, SessionKeyData, GasAbstractionTracker  } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 
 interface IBattleNads {
-    // Cashier interface
+    // Gas Relay interface
     function getCurrentSessionKeyData(address owner) external view returns (SessionKeyData memory sessionKeyData);
     function updateSessionKey(address sessionKeyAddress, uint256 expiration) external payable;
     function replenishGasBalance() external payable;

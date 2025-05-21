@@ -271,6 +271,7 @@ abstract contract Storage {
     }
 
     function _deleteBattleNad(BattleNad memory combatant) internal {
+        combatant = _removeClassStatAdjustments(combatant);
         // Don't delete owner's link to character if this is a monster
         if (!combatant.isMonster() && combatant.owner != address(0)) {
             characters[combatant.owner] = bytes32(0);
@@ -282,8 +283,25 @@ abstract contract Storage {
         // delete owners[combatant.id];
         delete characterIDs[nameHash];
         delete inventories[combatant.id];
-        delete characterStats[combatant.id];
         delete characterTasks[combatant.id];
-        delete characterNames[combatant.id];
+
+        // delete characterNames[combatant.id];
+        // delete characterStats[combatant.id];
+
+        BattleNadStats memory cleanedStats;
+        cleanedStats.class = combatant.stats.class;
+        cleanedStats.level = combatant.stats.level;
+        cleanedStats.strength = combatant.stats.strength;
+        cleanedStats.vitality = combatant.stats.vitality;
+        cleanedStats.dexterity = combatant.stats.dexterity;
+        cleanedStats.quickness = combatant.stats.quickness;
+        cleanedStats.sturdiness = combatant.stats.sturdiness;
+        cleanedStats.luck = combatant.stats.luck;
+
+        _storeBattleNadStats(cleanedStats, combatant.id);
+
+        //characterStats[combatant.id] = cleanedStats;
     }
+
+    function _removeClassStatAdjustments(BattleNad memory combatant) internal pure virtual returns (BattleNad memory);
 }
