@@ -16,7 +16,11 @@ import {
     DataFeed
 } from "./Types.sol";
 
-import { SessionKey, SessionKeyData, GasAbstractionTracker } from "./cashier/CashierTypes.sol";
+import {
+    SessionKey,
+    SessionKeyData,
+    GasAbstractionTracker
+} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 
 import { TaskHandler } from "./TaskHandler.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -119,53 +123,64 @@ contract Getters is TaskHandler {
     // FOR THE LOVE OF ALL THAT IS GOOD, DO NOT CALL THIS ON CHAIN!
     function getBattleNad(bytes32 characterID) public view returns (BattleNad memory character) {
         character = _loadBattleNad(characterID);
-        if (character.stats.health > 0) {
-            character = _addClassStatAdjustments(character);
-            character.inventory = inventories[characterID];
-            character = character.loadEquipment();
-            character.activeAbility = _loadAbility(characterID);
+        if (character.stats.health == 0) {
+            character.tracker.died = true;
         }
+        character = _addClassStatAdjustments(character);
+        character.inventory = inventories[characterID];
+
+        if (!character.tracker.died) {
+            character = character.loadEquipment();
+            if (!character.isMonster()) {
+                character.activeAbility = _loadAbility(characterID);
+            }
+        } else {
+            character.stats.health = 0;
+        }
+
         if (!character.isMonster()) {
             character.name = characterNames[characterID];
         }
-        character.addName();
+        return character.addName();
     }
 
     // FOR THE LOVE OF ALL THAT IS GOOD, DO NOT CALL THIS ON CHAIN!
     function getBattleNadLite(bytes32 characterID) public view returns (BattleNadLite memory character) {
         BattleNadStats memory stats = _loadBattleNadStats(characterID);
-        if (stats.health > 0) {
-            stats = _handleAddClassStats(stats);
-            character.maxHealth = _maxHealth(stats);
-        }
         character.id = characterID;
         character.class = stats.class;
+        if (stats.health == 0) {
+            character.isDead = true;
+        }
+        stats = _handleAddClassStats(stats);
+        character.maxHealth = _maxHealth(stats);
         character.health = uint256(stats.health);
         character.buffs = uint256(stats.buffs);
         character.debuffs = uint256(stats.debuffs);
         character.level = uint256(stats.level);
         character.index = uint256(stats.index);
         character.combatantBitMap = uint256(stats.combatantBitMap);
-        character.isDead = character.health == 0;
 
         if (!character.isDead) {
             character = character.loadEquipment(stats);
+        } else {
+            character.health = 0;
         }
 
         if (!character.isMonster()) {
-            AbilityTracker memory activeAbility = abilityTasks[characterID];
+            if (!character.isDead) {
+                AbilityTracker memory activeAbility = abilityTasks[characterID];
 
-            character.ability = activeAbility.ability;
-            character.abilityStage = uint256(activeAbility.stage);
+                character.ability = activeAbility.ability;
+                character.abilityStage = uint256(activeAbility.stage);
 
-            // Offset target block because frontend will read this ~3 blocks behind
-            character.abilityTargetBlock = uint256(activeAbility.targetBlock) + 4;
+                // Offset target block because frontend will read this ~3 blocks behind
+                character.abilityTargetBlock = uint256(activeAbility.targetBlock) + 4;
+            }
 
             character.name = characterNames[characterID];
         }
-
-        character.addName();
-        return character;
+        return character.addName();
     }
 
     /*
@@ -270,6 +285,10 @@ contract Getters is TaskHandler {
         bytes32 combatantID;
         uint256 combatantBitmap = uint256(stats.combatantBitMap);
 
+        // Filter out the player character
+        // NOTE: It should never be in combat with itself - this is tautological
+        combatantBitmap &= ~(1 << uint256(stats.index));
+
         bytes32[] memory combatantIDsUncompressed = new bytes32[](64);
 
         uint256 i;
@@ -313,6 +332,9 @@ contract Getters is TaskHandler {
 
         uint256 combatantBitmap = uint256(stats.combatantBitMap);
         uint256 combinedBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
+
+        // Filter out the player character
+        combinedBitmap &= ~(1 << uint256(stats.index));
 
         uint256 j;
         for (uint256 i; i < 64; i++) {

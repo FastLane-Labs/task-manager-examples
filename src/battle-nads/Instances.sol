@@ -180,25 +180,41 @@ abstract contract Instances is Combat {
             revert Errors.InvalidDepthChange(currentDepth, nextDepth);
         }
 
-        bytes32 randomSeed;
-        if (currentDepth + 1 == nextDepth) {
-            // Going Deeper
-            randomSeed = keccak256(abi.encode(_DEPTH_SEED, currentDepth, nextDepth));
-        } else if (currentDepth == nextDepth + 1) {
-            randomSeed = keccak256(abi.encode(_DEPTH_SEED, nextDepth, currentDepth));
+        uint256 deeperDepth;
+        uint256 shallowerDepth;
+        if (currentDepth < nextDepth) {
+            shallowerDepth = uint256(currentDepth);
+            deeperDepth = uint256(nextDepth);
         } else {
-            revert Errors.InvalidDepthChange(currentDepth, nextDepth);
+            shallowerDepth = uint256(nextDepth);
+            deeperDepth = uint256(currentDepth);
         }
 
-        uint256 baseX = uint256(uint256(0xff) & uint256(uint8(uint256(randomSeed >> 8)))) + uint256(currentDepth)
-            + uint256(nextDepth);
-        baseX %= (MAX_DUNGEON_X - 1);
-        x = uint8(baseX + 1);
+        x = 25; // starting x
+        y = 25; // starting y
+        // Return (25,25) for location to descend to the second dungeon depth
+        if (shallowerDepth == 1) {
+            return (x, y);
+        }
 
-        uint256 baseY = uint256(uint256(0xff) & uint256(uint8(uint256(randomSeed >> 32)))) + uint256(currentDepth)
-            + uint256(nextDepth);
-        baseY %= (MAX_DUNGEON_Y - 1);
-        y = uint8(baseY + 1);
+        uint256 cornerIndicator = shallowerDepth % 4;
+        uint8 traverse = uint8(10 + (shallowerDepth / 4));
+        // Max depth is 50.
+        // 50 > 25 + (10+13) > 25 - (10+13) > 1
+        if (cornerIndicator == 0) {
+            x -= traverse;
+            y -= traverse;
+        } else if (cornerIndicator == 1) {
+            x += traverse;
+            y += traverse;
+        } else if (cornerIndicator == 2) {
+            x += traverse;
+            y -= traverse;
+        } else if (cornerIndicator == 3) {
+            x -= traverse;
+            y += traverse;
+        }
+        return (x, y);
     }
 
     // Can only go deeper into the dungeon at certain coordinates for each level

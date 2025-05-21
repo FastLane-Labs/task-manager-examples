@@ -37,12 +37,13 @@ struct BattleNadLite {
 
 enum CharacterClass {
     // Null value
-    Bard,
+    Null,
     // Monsters
     Basic,
     Elite,
     Boss,
     // Player Classes
+    Bard,
     Warrior,
     Rogue,
     Monk,

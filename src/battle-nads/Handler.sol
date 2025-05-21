@@ -167,7 +167,7 @@ abstract contract Handler is Balances {
 
         if (scheduledTask) {
             uint256 targetBlock = block.number + _cooldown(player.stats);
-            (monster, scheduledTask) = _createCombatTask(player, targetBlock);
+            (player, scheduledTask) = _createCombatTask(player, targetBlock);
         }
 
         // This is being called by a non-task function, so revert if we failed to schedule the task
@@ -299,7 +299,6 @@ abstract contract Handler is Balances {
         uint8 weaponID
     )
         external
-        view
         CalledBySelfInTryCatch
         NotWhileDead(player)
         NotWhileInCombat(player)
@@ -323,7 +322,6 @@ abstract contract Handler is Balances {
         uint8 armorID
     )
         external
-        view
         CalledBySelfInTryCatch
         NotWhileDead(player)
         NotWhileInCombat(player)
@@ -352,7 +350,6 @@ abstract contract Handler is Balances {
         uint256 newLuck
     )
         external
-        view
         CalledBySelfInTryCatch
         NotWhileDead(player)
         NotWhileInCombat(player)
@@ -613,6 +610,9 @@ abstract contract Handler is Balances {
             _leaveLocation(combatant);
         }
 
+        // Remove opponents from being in combat with combatant
+        combatant = _combatCheckLoop(combatant, true);
+
         BalanceTracker memory balanceTracker = balances;
 
         if (!combatant.isMonster()) {
@@ -642,6 +642,86 @@ abstract contract Handler is Balances {
         return cashedOutShMONShares;
     }
 
+    function _combatCheckLoop(BattleNad memory combatant, bool forceRemoveCombat) internal returns (BattleNad memory) {
+        BattleArea memory area = _loadArea(combatant.stats.depth, combatant.stats.x, combatant.stats.y);
+        uint256 monsterBitmap = uint256(area.monsterBitMap);
+        uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
+
+        uint256 combatantBitmap = uint256(combatant.stats.combatantBitMap);
+        uint256 combatantBit = 1 << uint256(combatant.stats.index);
+
+        // Flip off this combatant's own bit
+        combinedBitmap &= ~combatantBit;
+
+        // Can't have an index of 0, start i at 1.
+        for (uint256 i = 1; i < 64; i++) {
+            uint256 indexBit = 1 << i;
+
+            // Check if in combat
+            if (combatantBitmap & indexBit != 0) {
+                // If in combat, check if opponent exists
+                if (combinedBitmap & indexBit != 0) {
+                    BattleNad memory opponent = _loadCombatant(area, i);
+                    uint256 opponentBitmap = uint256(opponent.stats.combatantBitMap);
+
+                    // CASE: Opponent isn't in combat with this player
+                    if (opponentBitmap & combatantBit == 0) {
+                        // pass (remove opponent from this char's combat bitmap)
+
+                        // CASE: Opponent is dead
+                    } else if (opponent.isDead()) {
+                        // Remove this char from opponent's bitmap
+                        opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
+                        opponent.tracker.updateStats = true;
+                        _storeBattleNad(opponent);
+                        //pass (remove opponent from this char's combat bitmap)
+
+                        // CASE: Opponent doesn't have an active task going
+                    } else if (opponent.activeTask == address(0)) {
+                        // Remove this char from opponent's bitmap
+                        opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
+                        opponent.tracker.updateStats = true;
+                        _storeBattleNad(opponent);
+                        // pass (remove opponent from this char's combat bitmap)
+
+                        // CASE: We're forcibly removing opponent from combat - most likely
+                        // because combatant is being forceKilled / despawned
+                    } else if (forceRemoveCombat) {
+                        opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
+                        opponent.tracker.updateStats = true;
+                        _storeBattleNad(opponent);
+                        // pass (remove opponent from this char's combat bitmap)
+
+                        // CASE: Opponent is legitimately in combat with character
+                    } else {
+                        continue;
+                    }
+                }
+
+                // If opponent doesn't exist, remove opponent from combat bitmap
+                combatantBitmap &= ~indexBit;
+                --combatant.stats.combatants;
+                if (!combatant.tracker.updateStats) combatant.tracker.updateStats = true;
+
+                // Remove target if it matches
+                if (uint256(combatant.stats.nextTargetIndex) == i) {
+                    combatant.stats.nextTargetIndex = 0;
+                }
+
+                // Check for early break
+                if (combatant.stats.combatants == 0) {
+                    combatant.stats.health = uint16(_maxHealth(combatant.stats));
+                    combatant.stats.sumOfCombatantLevels = 0;
+                    combatant.stats.combatantBitMap = 0;
+                    return combatant;
+                }
+            }
+        }
+
+        combatant.stats.combatantBitMap = uint64(combatantBitmap);
+        return combatant;
+    }
+
     modifier CalledBySelfInTryCatch() {
         if (msg.sender != address(this)) {
             revert Errors.InvalidCaller(msg.sender);
@@ -650,8 +730,15 @@ abstract contract Handler is Balances {
     }
 
     modifier NotWhileInCombat(BattleNad memory player) {
-        if (player.isInCombat() || player.activeTask != address(0)) {
+        if (player.activeTask != address(0)) {
             revert Errors.CantMoveInCombat();
+        } else if (player.isInCombat()) {
+            player = _combatCheckLoop(player, false);
+            // return early if still in combat after verifying
+            if (player.isInCombat()) {
+                _storeBattleNad(player);
+                return;
+            }
         }
         _;
     }

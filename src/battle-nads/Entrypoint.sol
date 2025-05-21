@@ -3,7 +3,11 @@ pragma solidity 0.8.28;
 
 import { BattleNad, BattleNadStats, BattleInstance, BattleArea, StorageTracker, Inventory } from "./Types.sol";
 
-import { SessionKey, GasAbstractionTracker } from "./cashier/CashierTypes.sol";
+import {
+    SessionKey,
+    SessionKeyData,
+    GasAbstractionTracker
+} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 
 import { Getters } from "./Getters.sol";
 import { Errors } from "./libraries/Errors.sol";

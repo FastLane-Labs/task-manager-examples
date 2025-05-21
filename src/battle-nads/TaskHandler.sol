@@ -43,7 +43,7 @@ contract TaskHandler is Handler {
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
             // Calculate the maximum payment
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, nextBlock);
+            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
             if (!reschedule || nextBlock == 0) {
@@ -69,13 +69,14 @@ contract TaskHandler is Handler {
         _validateCalledByTask(attacker);
 
         // Handle spawn
-        (attacker, reschedule, nextBlock) = _handleSpawn(attacker);
+        uint256 targetBlock;
+        (attacker, reschedule, targetBlock) = _handleSpawn(attacker);
 
         // Reschedule if necessary
         if (reschedule) {
             // Calculate the maximum payment and estimate
             // Calculate the maximum payment
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, nextBlock);
+            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
             if (!reschedule || nextBlock == 0) {
@@ -130,12 +131,13 @@ contract TaskHandler is Handler {
         _validateCalledByAbilityTask(attacker);
 
         // Handle spawn
-        (attacker, reschedule, nextBlock) = _handleAbility(attacker);
+        uint256 targetBlock;
+        (attacker, reschedule, targetBlock) = _handleAbility(attacker);
 
         // Reschedule if necessary
         if (reschedule) {
             // Calculate the maximum payment
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, nextBlock);
+            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
             if (!reschedule || nextBlock == 0) {
@@ -162,7 +164,7 @@ contract TaskHandler is Handler {
         }
 
         // Get max task payment
-        uint256 maxPayment = _amountBondedToThis(combatant.owner);
+        uint256 maxPayment = _amountBondedToThis(combatant.owner) / 2;
 
         // Calculate the maximum payment
         bytes memory data = abi.encodeCall(IBattleNadsImplementation.execute, (combatant.id));
@@ -174,7 +176,7 @@ contract TaskHandler is Handler {
             maxPayment,
             MIN_REMAINDER_GAS,
             targetBlock,
-            targetBlock + 32,
+            targetBlock + 65,
             TASK_IMPLEMENTATION,
             TASK_GAS,
             data
@@ -203,7 +205,7 @@ contract TaskHandler is Handler {
         }
 
         // Get max task payment
-        uint256 maxPayment = _amountBondedToThis(combatant.owner);
+        uint256 maxPayment = _amountBondedToThis(combatant.owner) / 2;
 
         // Calculate the maximum payment
         bytes memory data = abi.encodeCall(IBattleNadsImplementation.spawn, (combatant.id));
@@ -215,7 +217,7 @@ contract TaskHandler is Handler {
             maxPayment,
             MIN_REMAINDER_GAS,
             targetBlock,
-            targetBlock + 64,
+            targetBlock + 65,
             TASK_IMPLEMENTATION,
             TASK_GAS,
             data
@@ -251,13 +253,12 @@ contract TaskHandler is Handler {
 
         // Create the task
         bytes32 taskID;
-        uint256 targetBlock;
         (success, taskID, targetBlock,) = _createTaskCustom(
             combatant.owner,
             maxPayment,
             MIN_REMAINDER_GAS,
             targetBlock,
-            targetBlock + 32,
+            targetBlock + 65,
             TASK_IMPLEMENTATION,
             TASK_GAS,
             data
@@ -398,9 +399,11 @@ contract TaskHandler is Handler {
             return (false, 0, 0);
         }
 
+        uint256 gasToUse = gasleft() / 2;
+        if (gasToUse > 100_000) gasToUse = 100_000;
+
         (amountEstimated, nextBlock) =
-            _getNextAffordableBlock(maxPayment - 1, targetBlock, nextBlock + 65, TASK_GAS, 100_000);
-        ++amountEstimated;
+            _getNextAffordableBlock(maxPayment, targetBlock, targetBlock + 65, TASK_GAS, gasToUse);
         if (nextBlock == 0 || amountEstimated > maxPayment) {
             return (false, 0, 0);
         }

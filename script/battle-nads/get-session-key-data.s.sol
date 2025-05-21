@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import { Getters } from "../../src/battle-nads/Getters.sol";
-import { SessionKeyData } from "../../src/battle-nads/cashier/CashierTypes.sol";
+import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
 import { BattleNad, BattleNadLite, DataFeed } from "../../src/battle-nads/Types.sol";
 
 contract GetSessionKeyDataScript is Script {
