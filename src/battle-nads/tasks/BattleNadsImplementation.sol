@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
+import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
 import { ITaskHandler } from "../interfaces/ITaskHandler.sol";
 import { Errors } from "../libraries/Errors.sol";
 import { BattleNad, BattleNadStats, Inventory, Weapon, Armor, StorageTracker } from "../Types.sol";

@@ -4,9 +4,9 @@ pragma solidity 0.8.28;
 import "forge-std/Script.sol";
 import { console } from "forge-std/console.sol";
 
-import { IAddressHub } from "@fastlane-task-manager/src/interfaces/common/IAddressHub.sol";
-import { Directory } from "@fastlane-task-manager/src/interfaces/common/Directory.sol";
-import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
+import { IAddressHub } from "@fastlane-contracts/common/IAddressHub.sol";
+import { Directory } from "@fastlane-contracts/common/Directory.sol";
+import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
 
 /**
  * @title ExecuteTasksScript

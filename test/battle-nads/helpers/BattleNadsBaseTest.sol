@@ -4,7 +4,7 @@ pragma solidity ^0.8.28;
 import { VmSafe } from "forge-std/Vm.sol";
 import { console } from "forge-std/console.sol";
 import { BaseTest } from "test/BaseTest.sol";
-import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
+import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
 import { BattleNadsWrapper } from "test/battle-nads/helpers/BattleNadsWrapper.sol";
 // BattleNads Specific Imports (Copied from original test file)
 import {
