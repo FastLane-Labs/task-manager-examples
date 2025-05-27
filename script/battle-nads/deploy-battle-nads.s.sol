@@ -6,8 +6,8 @@ import "forge-std/console.sol";
 
 import { BattleNadsEntrypoint } from "../../src/battle-nads/Entrypoint.sol";
 import { BattleNadsImplementation } from "../../src/battle-nads/tasks/BattleNadsImplementation.sol";
-import { IAddressHub } from "@fastlane-task-manager/src/interfaces/common/IAddressHub.sol";
-import { Directory } from "@fastlane-task-manager/src/interfaces/common/Directory.sol";
+import { IAddressHub } from "@fastlane-contracts/common/IAddressHub.sol";
+import { Directory } from "@fastlane-contracts/common/Directory.sol";
 
 contract DeployBattleNads is Script {
     // Deployment addresses will be stored here

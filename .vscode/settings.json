@@ -1,6 +1,6 @@
 {
     "solidity.remappings": [
-        "@fastlane-task-manager/src/=node_modules/@fastlane-task-manager/src/",
+        "@fastlane-contracts/=lib/fastlane-contracts/src/",
         "@solady/=lib/solady/src/",
         "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
         "forge-std/=lib/forge-std/src/"

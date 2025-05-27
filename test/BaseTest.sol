@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 import { Test } from "forge-std/Test.sol";
 import { TestConstants } from "test/TestConstants.sol";
-import { ITaskManager } from "@fastlane-task-manager/src/interfaces/ITaskManager.sol";
+import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
 
 contract BaseTest is TestConstants, Test {
     string internal networkRpcUrl = "MONAD_TESTNET_RPC_URL";
