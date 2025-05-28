@@ -91,7 +91,7 @@ abstract contract Balances is GasRelayBase, Instances {
         BalanceTracker memory balanceTracker;
         unchecked {
             balanceTracker = balances;
-        } 
+        }
         uint256 defeatedBalance;
 
         // Decrement losing side

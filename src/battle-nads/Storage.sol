@@ -188,7 +188,7 @@ abstract contract Storage {
             characterStats[characterID] = packedStats;
         }
     }
-/*
+    /*
     function _storeDeadBattleNadStats(BattleNadStats memory stats, bytes32 characterID) internal {
         uint256 packedStats;
         {
