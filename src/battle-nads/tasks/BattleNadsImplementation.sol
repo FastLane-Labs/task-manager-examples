@@ -12,6 +12,8 @@ contract BattleNadsImplementation {
     address private immutable _BATTLE_NADS;
     address private immutable _IMPLEMENTATION;
 
+    uint256 private constant _MIN_RESCHEDULE_GAS = 25_500;
+
     constructor() {
         _BATTLE_NADS = msg.sender;
         _IMPLEMENTATION = address(this);
@@ -21,8 +23,12 @@ contract BattleNadsImplementation {
         if (address(this) == _IMPLEMENTATION) {
             revert MustBeDelegated();
         }
+        // Leave enough room for rescheduling
+        // NOTE: Some functions inside processTurn will iterate until gasleft() is low
+        uint256 gasLimit = gasleft() > _MIN_RESCHEDULE_GAS ? gasleft() - _MIN_RESCHEDULE_GAS : gasleft(); 
+
         // Process the turn
-        (bool reschedule, uint256 nextBlock, uint256 maxPayment) = ITaskHandler(_BATTLE_NADS).processTurn(characterID);
+        (bool reschedule, uint256 nextBlock, uint256 maxPayment) = ITaskHandler(_BATTLE_NADS).processTurn{gas: gasLimit}(characterID);
         if (!reschedule) {
             return;
         }
@@ -40,9 +46,13 @@ contract BattleNadsImplementation {
         if (address(this) == _IMPLEMENTATION) {
             revert MustBeDelegated();
         }
+         // Leave enough room for rescheduling
+        // NOTE: Some functions inside processTurn will iterate until gasleft() is low
+        uint256 gasLimit = gasleft() > _MIN_RESCHEDULE_GAS ? gasleft() - _MIN_RESCHEDULE_GAS : gasleft(); 
+
         // Process the turn
         (bool reschedule, uint256 nextBlock, uint256 maxPayment) =
-            ITaskHandler(_BATTLE_NADS).processAbility(characterID);
+            ITaskHandler(_BATTLE_NADS).processAbility{gas: gasLimit}(characterID);
         if (!reschedule) {
             return;
         }
@@ -70,8 +80,12 @@ contract BattleNadsImplementation {
         if (address(this) == _IMPLEMENTATION) {
             revert MustBeDelegated();
         }
+         // Leave enough room for rescheduling
+        // NOTE: Some functions inside processTurn will iterate until gasleft() is low
+        uint256 gasLimit = gasleft() > _MIN_RESCHEDULE_GAS ? gasleft() - _MIN_RESCHEDULE_GAS : gasleft(); 
+
         // Process the turn
-        (bool reschedule, uint256 nextBlock, uint256 maxPayment) = ITaskHandler(_BATTLE_NADS).processSpawn(characterID);
+        (bool reschedule, uint256 nextBlock, uint256 maxPayment) = ITaskHandler(_BATTLE_NADS).processSpawn{gas: gasLimit}(characterID);
         if (!reschedule) {
             return;
         }

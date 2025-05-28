@@ -166,18 +166,27 @@ contract BattleNadsTest is BattleNadsBaseTest {
 
             _rollForward(2);	
             battleNads.printLogs(user3);	
-            _topUpBonded(3);	
-
-            console.log("=FINAL=");
-
-            _rollForward(2);	
-            battleNads.printLogs(user3);	
+            _topUpBonded(3);		
         }	
 
         console.log("");	
         console.log("Combat Over");	
         console.log("====================");	
         console.log("");	
+        battleNads.printBattleNad(_battleNad(3));	
+        console.log("");	
+        battleNads.printBattleNad(_battleNad(opponentID));	
+
+        console.log("=FINAL=");
+
+        _rollForward(2);		
+
+        console.log("");	
+        battleNads.printBattleNad(_battleNad(3));	
+        console.log("");	
+        battleNads.printBattleNad(_battleNad(opponentID));	
+
+        _rollForward(2); console.log("");	
         battleNads.printBattleNad(_battleNad(3));	
         console.log("");	
         battleNads.printBattleNad(_battleNad(opponentID));	

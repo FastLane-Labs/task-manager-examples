@@ -92,6 +92,9 @@ abstract contract Combat is MonsterFactory {
         uint256 beatriceBitmap = uint256(beatrice.stats.combatantBitMap);
         uint256 sallyBit = 1 << uint256(sally.stats.index);
         if (beatriceBitmap & sallyBit == 0) {
+            if (beatriceBitmap == 0) {
+                beatrice.stats.nextTargetIndex = sally.stats.index;
+            }
             beatriceBitmap |= sallyBit;
             beatrice.stats.combatantBitMap = uint64(beatriceBitmap);
             ++beatrice.stats.combatants;
@@ -104,6 +107,9 @@ abstract contract Combat is MonsterFactory {
         uint256 sallyBitmap = uint256(sally.stats.combatantBitMap);
         uint256 beatriceBit = 1 << uint256(beatrice.stats.index);
         if (sallyBitmap & beatriceBit == 0) {
+            if (sallyBitmap == 0) {
+                sally.stats.nextTargetIndex = beatrice.stats.index;
+            }
             sallyBitmap |= beatriceBit;
             sally.stats.combatantBitMap = uint64(sallyBitmap);
             ++sally.stats.combatants;

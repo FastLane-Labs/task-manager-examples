@@ -88,7 +88,10 @@ abstract contract Balances is GasRelayBase, Instances {
         returns (BattleNad memory, BattleNad memory, Log memory)
     {
         // Load the balances
-        BalanceTracker memory balanceTracker = balances;
+        BalanceTracker memory balanceTracker;
+        unchecked {
+            balanceTracker = balances;
+        } 
         uint256 defeatedBalance;
 
         // Decrement losing side

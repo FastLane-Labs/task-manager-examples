@@ -188,7 +188,7 @@ abstract contract Storage {
             characterStats[characterID] = packedStats;
         }
     }
-
+/*
     function _storeDeadBattleNadStats(BattleNadStats memory stats, bytes32 characterID) internal {
         uint256 packedStats;
         {
@@ -238,6 +238,7 @@ abstract contract Storage {
             deadCharacterStats[characterID] = packedStats;
         }
     }
+    */
 
     function _loadAbility(bytes32 characterID) internal view returns (AbilityTracker memory activeAbility) {
         activeAbility = abilityTasks[characterID];
