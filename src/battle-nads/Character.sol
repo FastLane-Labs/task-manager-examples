@@ -285,7 +285,7 @@ abstract contract Character is Abilities {
         // TODO: Emit death event
 
         // Store dead character stats for scoreboard
-        _storeDeadBattleNadStats(attacker.stats, attacker.id);
+        // _storeDeadBattleNadStats(attacker.stats, attacker.id);
 
         // Remove combatant from location
         _leaveLocation(attacker);
@@ -302,7 +302,7 @@ abstract contract Character is Abilities {
     }
 
     function _processDefenderDeath(BattleNad memory defender) internal returns (BattleNad memory) {
-        // Location handled when it's defender's turn to prevent race condition
+        // Location handled when it's defender's turn to attack prevent race condition
 
         // Combat Stats
         defender.stats.health = 0;
