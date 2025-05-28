@@ -167,6 +167,11 @@ contract BattleNadsTest is BattleNadsBaseTest {
             _rollForward(2);	
             battleNads.printLogs(user3);	
             _topUpBonded(3);	
+
+            console.log("=FINAL=");
+
+            _rollForward(2);	
+            battleNads.printLogs(user3);	
         }	
 
         console.log("");	
