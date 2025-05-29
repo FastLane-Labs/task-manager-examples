@@ -113,7 +113,6 @@ contract BattleNadsMovementTest is BattleNadsBaseTest, Constants {
         battleNads.moveWest(character1);
         _rollForward(1);
         BattleNad memory nad_after = _battleNad(1);
-        VmSafe.Log[] memory logs = vm.getRecordedLogs();
 
         assertEq(nad_after.stats.x, initialX - 1, "X coordinate did not decrement correctly");
         assertEq(nad_after.stats.y, initialY, "Y coordinate should not change");
