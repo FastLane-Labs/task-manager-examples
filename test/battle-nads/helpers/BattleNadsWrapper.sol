@@ -96,4 +96,83 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
         console.log("  Task:", battleNad.activeTask); // 2 args - OK
         console.log("  Balance:", battleNad.inventory.balance); // 2 args - OK
     }
+
+    // =============================================================================
+    // COMBAT FUNCTION TESTING HELPERS
+    // =============================================================================
+
+    /**
+     * @dev Expose _checkHit for testing hit/miss/critical logic
+     */
+    function testCheckHit(
+        BattleNad memory attacker,
+        BattleNad memory defender,
+        bytes32 randomSeed
+    ) public pure returns (bool isHit, bool isCritical) {
+        return _checkHit(attacker, defender, randomSeed);
+    }
+
+    /**
+     * @dev Expose _getDamage for testing damage calculation
+     */
+    function testGetDamage(
+        BattleNad memory attacker,
+        BattleNad memory defender,
+        bytes32 randomSeed,
+        bool isCritical
+    ) public pure returns (uint16 damage) {
+        return _getDamage(attacker, defender, randomSeed, isCritical);
+    }
+
+    /**
+     * @dev Expose _canEnterMutualCombatToTheDeath for testing level cap logic
+     */
+    function testCanEnterMutualCombatToTheDeath(
+        BattleNad memory attacker,
+        BattleNad memory defender
+    ) public pure returns (bool) {
+        return _canEnterMutualCombatToTheDeath(attacker, defender);
+    }
+
+    /**
+     * @dev Expose _disengageFromCombat for testing combat disengagement
+     */
+    function testDisengageFromCombat(
+        BattleNad memory attacker,
+        BattleNad memory defender
+    ) public pure returns (BattleNad memory, BattleNad memory) {
+        return _disengageFromCombat(attacker, defender);
+    }
+
+    /**
+     * @dev Expose _regenerateHealth for testing health regeneration
+     */
+    function testRegenerateHealth(
+        BattleNad memory combatant,
+        Log memory log
+    ) public returns (BattleNad memory, Log memory) {
+        return _regenerateHealth(combatant, log);
+    }
+
+    /**
+     * @dev Expose _handleLoot for testing loot distribution
+     */
+    function testHandleLoot(
+        BattleNad memory self,
+        BattleNad memory vanquished,
+        Log memory log
+    ) public returns (BattleNad memory, Log memory) {
+        return _handleLoot(self, vanquished, log);
+    }
+
+    /**
+     * @dev Expose _attack for testing full attack sequence
+     */
+    function testAttack(
+        BattleNad memory attacker,
+        BattleNad memory defender,
+        Log memory log
+    ) public returns (BattleNad memory, BattleNad memory, Log memory) {
+        return _attack(attacker, defender, log);
+    }
 }
