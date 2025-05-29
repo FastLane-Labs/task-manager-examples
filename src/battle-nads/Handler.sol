@@ -653,8 +653,20 @@ abstract contract Handler is Balances {
         // Flip off this combatant's own bit
         combinedBitmap &= ~combatantBit;
 
+        if (combinedBitmap == 0) {
+            combatant.stats.combatantBitMap = 0;
+            combatant.stats.nextTargetIndex = 0;
+            combatant.stats.combatants = 0;
+            combatant.stats.sumOfCombatantLevels = 0;
+            combatant.stats.health = uint16(_maxHealth(combatant.stats));
+            combatant.tracker.updateStats = true;
+            return combatant;
+        }
+
         // Can't have an index of 0, start i at 1.
         for (uint256 i = 1; i < 64; i++) {
+            if (gasleft() < 45_000) break;
+
             uint256 indexBit = 1 << i;
 
             // Check if in combat
@@ -710,9 +722,12 @@ abstract contract Handler is Balances {
 
                 // Check for early break
                 if (combatant.stats.combatants == 0) {
-                    combatant.stats.health = uint16(_maxHealth(combatant.stats));
-                    combatant.stats.sumOfCombatantLevels = 0;
                     combatant.stats.combatantBitMap = 0;
+                    combatant.stats.nextTargetIndex = 0;
+                    combatant.stats.combatants = 0;
+                    combatant.stats.sumOfCombatantLevels = 0;
+                    combatant.stats.health = uint16(_maxHealth(combatant.stats));
+                    combatant.tracker.updateStats = true;
                     return combatant;
                 }
             }
@@ -734,11 +749,8 @@ abstract contract Handler is Balances {
             revert Errors.CantMoveInCombat();
         } else if (player.isInCombat()) {
             player = _combatCheckLoop(player, false);
-            // return early if still in combat after verifying
-            if (player.isInCombat()) {
-                _storeBattleNad(player);
-                return;
-            }
+            _storeBattleNad(player);
+            return;
         }
         _;
     }
