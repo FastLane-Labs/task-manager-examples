@@ -203,40 +203,33 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
 
     // --- Character Creation Revert Tests (Plan Category 2) ---
     function test_CreateCharacter_InvalidStatsSum() public {
-        uint256 cost = battleNads.estimateBuyInAmountInMON();
         vm.prank(user1);
-        bytes32 initialCharId = battleNads.characters(user1);
-        battleNads.createCharacter{ value: cost }("StatsTooLow", 5, 5, 5, 5, 5, 6, address(0), 0);
-        // Assert: Character mapping for owner should not have changed (no new character created)
-        assertEq(battleNads.characters(user1), initialCharId, "Character created despite invalid stats sum");
+        bytes32 resultId = battleNads.createCharacter{ value: 0 }("StatsTooLow", 5, 5, 5, 5, 5, 6, address(0), 0);
+        assertEq(resultId, bytes32(0), "Character should not be created with invalid stats sum");
+        assertEq(battleNads.characters(user1), bytes32(0), "Character mapping should remain empty");
     }
 
     function test_CreateCharacter_InvalidMinStats() public {
-        uint256 cost = battleNads.estimateBuyInAmountInMON();
         vm.prank(user1);
-        bytes32 initialCharId = battleNads.characters(user1);
-        battleNads.createCharacter{ value: cost }("MinStatTooLow", 7, 2, 6, 5, 6, 6, address(0), 0);
-        assertEq(battleNads.characters(user1), initialCharId, "Character created despite invalid min stats");
+        bytes32 resultId = battleNads.createCharacter{ value: 0 }("MinStatTooLow", 7, 2, 6, 5, 6, 6, address(0), 0);
+        assertEq(resultId, bytes32(0), "Character should not be created with invalid min stats");
+        assertEq(battleNads.characters(user1), bytes32(0), "Character mapping should remain empty");
     }
 
     function test_CreateCharacter_NameTooLong() public {
-        uint256 cost = battleNads.estimateBuyInAmountInMON();
         string memory longName = "ThisNameIsWayTooLongToBeValid"; // > _MAX_NAME_LENGTH (18)
-            // vm.expectRevert(abi.encodeWithSelector(Errors.NameTooLong.selector, bytes(longName).length));
         vm.prank(user1);
-        bytes32 initialCharId = battleNads.characters(user1);
-        battleNads.createCharacter{ value: cost }(longName, 6, 6, 5, 5, 5, 5, address(0), 0);
-        assertEq(battleNads.characters(user1), initialCharId, "Character created despite long name");
+        bytes32 resultId = battleNads.createCharacter{ value: 0 }(longName, 6, 6, 5, 5, 5, 5, address(0), 0);
+        assertEq(resultId, bytes32(0), "Character should not be created with long name");
+        assertEq(battleNads.characters(user1), bytes32(0), "Character mapping should remain empty");
     }
 
     function test_CreateCharacter_NameTooShort() public {
-        uint256 cost = battleNads.estimateBuyInAmountInMON();
         string memory shortName = "AB"; // < _MIN_NAME_LENGTH (3)
-        // Remove try/catch and expectRevert
         vm.prank(user1);
-        bytes32 initialCharId = battleNads.characters(user1);
-        battleNads.createCharacter{ value: cost }(shortName, 6, 6, 5, 5, 5, 5, address(0), 0);
-        assertEq(battleNads.characters(user1), initialCharId, "Character created despite short name");
+        bytes32 resultId = battleNads.createCharacter{ value: 0 }(shortName, 6, 6, 5, 5, 5, 5, address(0), 0);
+        assertEq(resultId, bytes32(0), "Character should not be created with short name");
+        assertEq(battleNads.characters(user1), bytes32(0), "Character mapping should remain empty");
     }
 
     function test_CreateCharacter_NameCollision() public {

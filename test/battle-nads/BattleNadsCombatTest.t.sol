@@ -96,13 +96,6 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         assertEq(nad_after_alloc.stats.unspentAttributePoints, 1, "Unspent points should remain");
     }
 
-    // TODO: Add tests from plan.md category 4:
-    // - test_CombatTurn_TargetSelection_Explicit
-    // - test_CombatTurn_TargetSelection_Random
-    // - test_CombatTurn_Experience
-    // - test_CombatEnd_Victor
-    // - test_CombatEnd_MutualDeath
-
     /**
      * @dev Tests attacking with an invalid target index
      */

@@ -108,7 +108,11 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
         BattleNad memory attacker,
         BattleNad memory defender,
         bytes32 randomSeed
-    ) public pure returns (bool isHit, bool isCritical) {
+    )
+        public
+        pure
+        returns (bool isHit, bool isCritical)
+    {
         return _checkHit(attacker, defender, randomSeed);
     }
 
@@ -120,7 +124,11 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
         BattleNad memory defender,
         bytes32 randomSeed,
         bool isCritical
-    ) public pure returns (uint16 damage) {
+    )
+        public
+        pure
+        returns (uint16 damage)
+    {
         return _getDamage(attacker, defender, randomSeed, isCritical);
     }
 
@@ -130,7 +138,11 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
     function testCanEnterMutualCombatToTheDeath(
         BattleNad memory attacker,
         BattleNad memory defender
-    ) public pure returns (bool) {
+    )
+        public
+        pure
+        returns (bool)
+    {
         return _canEnterMutualCombatToTheDeath(attacker, defender);
     }
 
@@ -140,7 +152,11 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
     function testDisengageFromCombat(
         BattleNad memory attacker,
         BattleNad memory defender
-    ) public pure returns (BattleNad memory, BattleNad memory) {
+    )
+        public
+        pure
+        returns (BattleNad memory, BattleNad memory)
+    {
         return _disengageFromCombat(attacker, defender);
     }
 
@@ -150,7 +166,10 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
     function testRegenerateHealth(
         BattleNad memory combatant,
         Log memory log
-    ) public returns (BattleNad memory, Log memory) {
+    )
+        public
+        returns (BattleNad memory, Log memory)
+    {
         return _regenerateHealth(combatant, log);
     }
 
@@ -161,7 +180,10 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
         BattleNad memory self,
         BattleNad memory vanquished,
         Log memory log
-    ) public returns (BattleNad memory, Log memory) {
+    )
+        public
+        returns (BattleNad memory, Log memory)
+    {
         return _handleLoot(self, vanquished, log);
     }
 
@@ -172,7 +194,10 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
         BattleNad memory attacker,
         BattleNad memory defender,
         Log memory log
-    ) public returns (BattleNad memory, BattleNad memory, Log memory) {
+    )
+        public
+        returns (BattleNad memory, BattleNad memory, Log memory)
+    {
         return _attack(attacker, defender, log);
     }
 }
