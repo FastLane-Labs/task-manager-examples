@@ -95,7 +95,7 @@ contract GetSessionKeyDataScript is Script {
         console.log("Key Address:      ", sessionKeyData.key);
         console.log("Expiration Block: ", sessionKeyData.expiration);
         console.log("------------------------");
-        
+
         // Log character information
         console.log("--- Character Data ---");
         console.log("Character ID:     ", vm.toString(characterID));
@@ -104,11 +104,11 @@ contract GetSessionKeyDataScript is Script {
         console.log("In Combat:        ", character.stats.combatants > 0 ? "Yes" : "No");
         console.log("Combatants Count: ", character.stats.combatants);
         console.log("----------------------");
-        
+
         // Log combatants information
         console.log("--- Combatants ---");
         console.log("Total Combatants: ", combatants.length);
-        for (uint i = 0; i < combatants.length; i++) {
+        for (uint256 i = 0; i < combatants.length; i++) {
             console.log("Combatant %s:", i);
             console.log("  ID:     ", vm.toString(combatants[i].id));
             console.log("  Name:   ", combatants[i].name);
@@ -116,11 +116,11 @@ contract GetSessionKeyDataScript is Script {
             console.log("  Index:  ", combatants[i].index);
         }
         console.log("------------------");
-        
+
         // Log noncombatants information
         console.log("--- Noncombatants ---");
         console.log("Total Noncombatants: ", noncombatants.length);
-        for (uint i = 0; i < noncombatants.length; i++) {
+        for (uint256 i = 0; i < noncombatants.length; i++) {
             console.log("Noncombatant %s:", i);
             console.log("  ID:     ", vm.toString(noncombatants[i].id));
             console.log("  Name:   ", noncombatants[i].name);

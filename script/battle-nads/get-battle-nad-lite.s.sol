@@ -37,15 +37,15 @@ contract GetBattleNadLiteScript is Script {
         // First get the character ID for this owner
         vm.startBroadcast();
         bytes32 characterID = getters.getPlayerCharacterID(ownerAddress);
-        
+
         if (characterID == bytes32(0)) {
             console.log("No character found for this owner");
             vm.stopBroadcast();
             return;
         }
-        
+
         console.log("Character ID found:", vm.toString(characterID));
-        
+
         // Now get the BattleNadLite data
         BattleNadLite memory character = getters.getBattleNadLite(characterID);
         vm.stopBroadcast();
@@ -87,18 +87,18 @@ contract GetBattleNadLiteScript is Script {
         console.log("Buffs:        ", character.buffs);
         console.log("Debuffs:      ", character.debuffs);
         console.log("Combatant Map:", character.combatantBitMap);
-        
+
         // Ability information
         console.log("--- Ability Info ---");
         console.log("Ability:      ", uint256(character.ability));
         console.log("Ability Stage:", character.abilityStage);
         console.log("Target Block: ", character.abilityTargetBlock);
         console.log("------------------");
-        
+
         // Equipment information (only names available in BattleNadLite)
         console.log("--- Equipment ---");
         console.log("Weapon Name:  ", character.weaponName);
         console.log("Armor Name:   ", character.armorName);
         console.log("================");
     }
-} 
+}
