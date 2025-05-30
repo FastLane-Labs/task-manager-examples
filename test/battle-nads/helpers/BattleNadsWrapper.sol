@@ -188,6 +188,17 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
     }
 
     /**
+     * @dev Expose _getCombatantIDs for testing combat targeting
+     */
+    function testGetCombatantIDs(bytes32 characterID)
+        public
+        view
+        returns (bytes32[] memory combatantIDs, uint256 numberOfCombatants)
+    {
+        return _getCombatantIDs(characterID);
+    }
+
+    /**
      * @dev Expose _attack for testing full attack sequence
      */
     function testAttack(
