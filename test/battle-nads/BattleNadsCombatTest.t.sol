@@ -240,7 +240,6 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
             // Execute the ability task
             _rollForward(1);
             
-            BattleNad memory afterExecution = _battleNad(1);
             // Task execution completed
             assertTrue(true, "Ability task execution completed");
         } else {
@@ -384,19 +383,10 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         bool combatStarted = _triggerRandomCombat(fighter);
         assertTrue(combatStarted, "Should enter combat");
         
-        // Use abilities with proper targeting and check for logs
-        bool abilityUsed = _useAppropriateAbility(fighter);
+        // Use ability with proper execution and cooldown handling
+        bool abilityUsed = _useAbilityAndExecute(fighter, 0, 1); // Use first ability
         
         if (abilityUsed) {
-            // Wait for ability to execute
-            BattleNad memory currentState = battleNads.getBattleNad(fighter);
-            if (currentState.activeAbility.taskAddress != address(0)) {
-                uint256 targetBlock = uint256(currentState.activeAbility.targetBlock);
-                if (targetBlock > block.number) {
-                    _rollForward(targetBlock - block.number + 1);
-    }
-            }
-            
             Log[] memory combatLogs = _getCombatLogs(user1);
             
             // Should have some combat-related logs
