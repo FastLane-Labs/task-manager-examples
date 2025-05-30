@@ -146,13 +146,21 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         BattleNad memory beforeAbility = _battleNad(1);
         assertTrue(beforeAbility.stats.combatants > 0, "Should be in combat");
         
-        // Use an ability to progress combat
-        bool abilityUsed = _useAbilityAndExecute(fighter, 0, 1); // Use first ability (likely ChargeUp for Sorcerer)
+        // Use ability with proper execution and cooldown handling
+        bool abilityUsed = _useAppropriateAbility(fighter);
         
         if (abilityUsed) {
-            // Get combat logs to verify ability execution (may or may not generate logs)
+            // Wait for ability execution if it was scheduled as a task
+            BattleNad memory withAbility = battleNads.getBattleNad(fighter);
+            if (withAbility.activeAbility.taskAddress != address(0)) {
+                uint256 targetBlock = uint256(withAbility.activeAbility.targetBlock);
+                if (targetBlock > block.number) {
+                    _rollForward(targetBlock - block.number + 1);
+                }
+            }
+            
             Log[] memory combatLogs = _getCombatLogs(user1);
-        
+            
             // Check for ability log (optional - some abilities execute immediately without logs)
             bool foundAbilityLog = false;
             for (uint i = 0; i < combatLogs.length; i++) {
@@ -384,9 +392,18 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         assertTrue(combatStarted, "Should enter combat");
         
         // Use ability with proper execution and cooldown handling
-        bool abilityUsed = _useAbilityAndExecute(fighter, 0, 1); // Use first ability
+        bool abilityUsed = _useAppropriateAbility(fighter);
         
         if (abilityUsed) {
+            // Wait for ability execution if it was scheduled as a task
+            BattleNad memory withAbility = battleNads.getBattleNad(fighter);
+            if (withAbility.activeAbility.taskAddress != address(0)) {
+                uint256 targetBlock = uint256(withAbility.activeAbility.targetBlock);
+                if (targetBlock > block.number) {
+                    _rollForward(targetBlock - block.number + 1);
+                }
+            }
+            
             Log[] memory combatLogs = _getCombatLogs(user1);
             
             // Should have some combat-related logs
@@ -430,7 +447,7 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         assertTrue(combatState.stats.nextTargetIndex > initialState.stats.nextTargetIndex, "Should have target selected");
         
         // Progress combat and observe changes
-        _useAbilityAndExecute(fighter, 0, 1);
+        _useAppropriateAbility(fighter);
         
         BattleNad memory afterAbility = _battleNad(1);
         
@@ -466,10 +483,25 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
             BattleNad memory currentState = _battleNad(1);
             if (currentState.stats.combatants == 0) break;
             
-            bool abilityUsed = _useAbilityAndExecute(fighter, 0, 1);
-            if (abilityUsed) abilityRounds++;
+            // Use smart ability selection that handles class-specific abilities and targeting
+            bool abilityUsed = _useAppropriateAbility(fighter);
+            if (abilityUsed) {
+                abilityRounds++;
+                
+                // Wait for ability execution if it was scheduled as a task
+                BattleNad memory withAbility = battleNads.getBattleNad(fighter);
+                if (withAbility.activeAbility.taskAddress != address(0)) {
+                    uint256 targetBlock = uint256(withAbility.activeAbility.targetBlock);
+                    if (targetBlock > block.number) {
+                        _rollForward(targetBlock - block.number + 1);
+                    }
+                }
+                
+                // Wait for ability cooldown (200 blocks) before next ability
+                vm.roll(block.number + 201);
             }
-            
+        }
+        
         assertTrue(abilityRounds > 0, "Phase 2: Should use at least one ability");
         
         // Phase 3: Verify Final State
