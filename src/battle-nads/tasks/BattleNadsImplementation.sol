@@ -12,7 +12,7 @@ contract BattleNadsImplementation {
     address private immutable _BATTLE_NADS;
     address private immutable _IMPLEMENTATION;
 
-    uint256 private constant _MIN_RESCHEDULE_GAS = 25_500;
+    uint256 private constant _MIN_RESCHEDULE_GAS = 45_500;
 
     constructor() {
         _BATTLE_NADS = msg.sender;
