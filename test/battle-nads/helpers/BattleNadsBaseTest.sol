@@ -247,36 +247,47 @@ contract BattleNadsBaseTest is BaseTest {
     /// @param maxRounds Maximum number of ability rounds to attempt
     /// @return survived Whether character survived combat
     /// @return finalState Final character state
-    function _fightWithAbilities(
-        bytes32 charId,
-        uint256 maxRounds
-    )
-        internal
-        returns (bool survived, BattleNad memory finalState)
-    {
+    function _fightWithAbilities(bytes32 charId, uint256 maxRounds) internal returns (bool survived, BattleNad memory finalState) {
         BattleNad memory currentState = battleNads.getBattleNad(charId);
         require(currentState.stats.combatants > 0, "Character must be in combat");
-
-        for (uint256 i = 0; i < maxRounds; i++) {
+        
+        for (uint i = 0; i < maxRounds; i++) {
             currentState = battleNads.getBattleNad(charId);
-
+            
             // Check if combat is over
             if (currentState.stats.combatants == 0) {
                 return (currentState.stats.health > 0, currentState);
             }
-
+            
+            // Check if there's an active ability task that needs to execute
+            if (currentState.activeAbility.taskAddress != address(0)) {
+                uint256 targetBlock = uint256(currentState.activeAbility.targetBlock);
+                if (targetBlock > block.number) {
+                    // Roll forward to the target block to execute the ability task
+                    uint256 blocksToRoll = targetBlock - block.number + 1;
+                    _rollForward(blocksToRoll);
+                    
+                    // Check if combat ended after ability execution
+                    BattleNad memory afterExecution = battleNads.getBattleNad(charId);
+                    if (afterExecution.stats.combatants == 0) {
+                        return (afterExecution.stats.health > 0, afterExecution);
+                    }
+                    continue; // Check for next ability or combat end
+                }
+            }
+            
             // Use appropriate ability to progress combat
             bool abilityUsed = _useAppropriateAbility(charId);
-
+            
             if (abilityUsed) {
-                // Roll forward to execute the ability task
-                _rollForward(1);
+                // Ability was scheduled, will be handled in next iteration
+                continue;
             } else {
-                // If we can't use abilities, break to avoid infinite loop
-                break;
+                // If we can't use abilities, try to wait for existing tasks to complete
+                _rollForward(5);
             }
         }
-
+        
         // If we get here, combat didn't end in maxRounds
         BattleNad memory timeoutState = battleNads.getBattleNad(charId);
         return (timeoutState.stats.health > 0, timeoutState);
