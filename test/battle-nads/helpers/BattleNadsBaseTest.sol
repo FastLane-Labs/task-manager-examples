@@ -257,6 +257,8 @@ contract BattleNadsBaseTest is BaseTest {
         BattleNad memory currentState = battleNads.getBattleNad(charId);
         require(currentState.stats.combatants > 0, "Character must be in combat");
 
+        uint256 lastAbilityBlock = 0; // Track when last ability was used
+
         for (uint256 i = 0; i < maxRounds; i++) {
             currentState = battleNads.getBattleNad(charId);
 
@@ -269,9 +271,12 @@ contract BattleNadsBaseTest is BaseTest {
             if (currentState.activeAbility.taskAddress != address(0)) {
                 uint256 targetBlock = uint256(currentState.activeAbility.targetBlock);
                 if (targetBlock > block.number) {
-                    // Roll forward to the target block to execute the ability task
+                    // Roll forward to execute the ability task
                     uint256 blocksToRoll = targetBlock - block.number + 1;
                     _rollForward(blocksToRoll);
+
+                    // Track when this ability executed for cooldown calculation
+                    lastAbilityBlock = block.number;
 
                     // Check if combat ended after ability execution
                     BattleNad memory afterExecution = battleNads.getBattleNad(charId);
@@ -282,15 +287,22 @@ contract BattleNadsBaseTest is BaseTest {
                 }
             }
 
+            // Check if we need to wait for ability cooldown (200 blocks)
+            if (lastAbilityBlock > 0 && block.number < lastAbilityBlock + 200) {
+                uint256 cooldownRemaining = (lastAbilityBlock + 200) - block.number;
+                vm.roll(block.number + cooldownRemaining + 1);
+            }
+
             // Use appropriate ability to progress combat
             bool abilityUsed = _useAppropriateAbility(charId);
 
             if (abilityUsed) {
                 // Ability was scheduled, will be handled in next iteration
+                lastAbilityBlock = block.number; // Update ability usage time
                 continue;
             } else {
-                // If we can't use abilities, try to wait for existing tasks to complete
-                _rollForward(5);
+                // If we can't use abilities, wait a bit for combat to progress naturally
+                _rollForward(10);
             }
         }
 
@@ -496,10 +508,10 @@ contract BattleNadsBaseTest is BaseTest {
         vm.store(address(battleNads), statSlot, bytes32(packedData));
     }
 
-    /// @notice Enhanced ability execution helper with proper targeting
+    /// @notice Helper to use an ability and execute it, handling cooldowns properly
     /// @param charId Character using ability
-    /// @param targetIndex Target index (0 for non-targeted abilities, or specific index for targeted)
-    /// @param abilityIndex Ability index (1-based)
+    /// @param targetIndex Target index for targeted abilities
+    /// @param abilityIndex Ability index to use
     /// @return success Whether ability was successfully used and executed
     function _useAbilityAndExecute(
         bytes32 charId,
@@ -514,16 +526,26 @@ contract BattleNadsBaseTest is BaseTest {
         // Use ability
         vm.prank(userSessionKey1);
         try battleNads.useAbility(charId, targetIndex, abilityIndex) {
-            // Roll forward to execute the ability task
-            _rollForward(1);
+            BattleNad memory afterAbility = battleNads.getBattleNad(charId);
 
-            BattleNad memory afterState = battleNads.getBattleNad(charId);
+            // If ability was scheduled as task, wait for it to execute
+            if (afterAbility.activeAbility.taskAddress != address(0)) {
+                uint256 targetBlock = uint256(afterAbility.activeAbility.targetBlock);
+                if (targetBlock > block.number) {
+                    _rollForward(targetBlock - block.number + 1);
+                }
 
-            // Check if ability had some effect (combat state changed or ability task cleared)
+                // Skip ahead for cooldown (200 blocks as per _checkAbilityTimeout)
+                vm.roll(block.number + 200);
+            }
+
+            BattleNad memory finalState = battleNads.getBattleNad(charId);
+
+            // Check if ability had some effect
             return (
-                afterState.stats.combatants != before.stats.combatants
-                    || afterState.stats.combatantBitMap != before.stats.combatantBitMap
-                    || afterState.stats.health != before.stats.health || afterState.activeAbility.taskAddress == address(0)
+                finalState.stats.combatants != before.stats.combatants
+                    || finalState.stats.combatantBitMap != before.stats.combatantBitMap
+                    || finalState.stats.health != before.stats.health || finalState.activeAbility.taskAddress == address(0)
             );
         } catch {
             return false;
