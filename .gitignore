@@ -13,3 +13,5 @@ docs/
 # Dotenv file
 .env
 .cursor
+.DS_Store
+broadcast/execute-tasks.s.sol
