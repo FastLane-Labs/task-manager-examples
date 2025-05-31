@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
 import { ITaskHandler } from "../interfaces/ITaskHandler.sol";
 import { Errors } from "../libraries/Errors.sol";
-import { BattleNad, BattleNadStats, Inventory, Weapon, Armor, StorageTracker } from "../Types.sol";
 
 contract BattleNadsImplementation {
     error MustBeDelegated();
@@ -12,7 +11,7 @@ contract BattleNadsImplementation {
     address private immutable _BATTLE_NADS;
     address private immutable _IMPLEMENTATION;
 
-    uint256 private constant _MIN_RESCHEDULE_GAS = 45_500;
+    uint256 private constant _MIN_RESCHEDULE_GAS = 35_000;
 
     constructor() {
         _BATTLE_NADS = msg.sender;

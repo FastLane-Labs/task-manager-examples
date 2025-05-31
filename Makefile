@@ -21,7 +21,7 @@ endif
 .PHONY: all clean install build test test-gas format snapshot anvil size update \
         test-deploy-battle-nads deploy-battle-nads test-execute-tasks execute-tasks \
         fork-test-deploy-battle-nads get-session-key test-battle-nads debug-network \
-        fork-anvil replay-tx
+        fork-anvil replay-tx get-character get-battle-nad-lite get-battle-nad-lite-by-id
 
 # Debug target
 debug-network:
@@ -114,6 +114,40 @@ get-session-key: debug-network
 	@if [ -z "$(RPC_URL)" ]; then echo "No RPC URL found for network $(NETWORK)"; exit 1; fi
 	@echo "Getting session key data for owner $(OWNER_ADDRESS) on $(NETWORK)..."
 	forge script script/battle-nads/get-session-key-data.s.sol:GetSessionKeyDataScript \
+		--rpc-url $(RPC_URL) \
+		-vvvv
+
+# Get Character ID Target
+get-character: debug-network
+	@if [ -z "$(OWNER_ADDRESS)" ]; then \
+		echo "Error: OWNER_ADDRESS environment variable must be set (e.g., in .env file or exported)."; \
+		echo "Usage: make get-character [NETWORK=<network>]"; \
+		exit 1; \
+	fi
+	@if [ -z "$(GETTERS_CONTRACT_ADDRESS)" ]; then \
+		echo "Error: GETTERS_CONTRACT_ADDRESS environment variable must be set (e.g., in .env file)."; \
+		exit 1; \
+	fi
+	@if [ -z "$(RPC_URL)" ]; then echo "No RPC URL found for network $(NETWORK)"; exit 1; fi
+	@echo "Getting character ID for owner $(OWNER_ADDRESS) on $(NETWORK)..."
+	forge script script/battle-nads/get-character-id.s.sol:GetCharacterIDScript $(OWNER_ADDRESS) \
+		--rpc-url $(RPC_URL) \
+		-vvvv
+
+# Get BattleNadLite Data by Character ID Target
+get-battle-nad-lite-by-id: debug-network
+	@if [ -z "$(CHARACTER_ID)" ]; then \
+		echo "Error: CHARACTER_ID environment variable must be set."; \
+		echo "Usage: make get-battle-nad-lite-by-id CHARACTER_ID=<character_id> [NETWORK=<network>]"; \
+		exit 1; \
+	fi
+	@if [ -z "$(GETTERS_CONTRACT_ADDRESS)" ]; then \
+		echo "Error: GETTERS_CONTRACT_ADDRESS environment variable must be set (e.g., in .env file)."; \
+		exit 1; \
+	fi
+	@if [ -z "$(RPC_URL)" ]; then echo "No RPC URL found for network $(NETWORK)"; exit 1; fi
+	@echo "Getting BattleNadLite data for character ID $(CHARACTER_ID) on $(NETWORK)..."
+	forge script script/battle-nads/get-battle-nad-lite.s.sol:GetBattleNadLiteScript --sig "run(bytes32)" $(CHARACTER_ID) \
 		--rpc-url $(RPC_URL) \
 		-vvvv
 
