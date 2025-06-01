@@ -1,15 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import {
-    BattleNad,
-    BattleNadStats,
-    BattleArea,
-    Inventory,
-    StorageTracker,
-    BalanceTracker,
-    CharacterClass
-} from "./Types.sol";
+import { BattleNad, BattleNadStats, Inventory, StorageTracker, BalanceTracker, CharacterClass } from "./Types.sol";
 
 import { Constants } from "./Constants.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -30,11 +22,9 @@ abstract contract MonsterFactory is CharacterFactory {
         returns (BattleNad memory monster)
     {
         // Get Monster ID
-        unchecked {
-            monster.id = instances[player.stats.depth][player.stats.x][player.stats.y].combatants[uint256(monsterIndex)];
-        }
+        monster.id = areaCombatants[player.stats.depth][player.stats.x][player.stats.y][uint256(monsterIndex)];
 
-        if (monster.id == bytes32(0)) {
+        if (!_isValidID(monster.id)) {
             revert Errors.CombatantDoesNotExist(player.stats.depth, player.stats.x, player.stats.y, monsterIndex);
         }
 
@@ -99,7 +89,7 @@ abstract contract MonsterFactory is CharacterFactory {
         monster.owner = player.owner;
         owners[monster.id] = player.owner;
 
-        emit Events.MonsterCreated(monster.id);
+        // emit Events.MonsterCreated(monster.id);
 
         monster.inventory = monster.inventory.addWeaponToInventory(monster.stats.weaponID);
         monster.inventory = monster.inventory.addArmorToInventory(monster.stats.armorID);

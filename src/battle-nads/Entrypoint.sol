@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { BattleNad, BattleNadStats, BattleInstance, BattleArea, StorageTracker, Inventory } from "./Types.sol";
+import { BattleNad, BattleNadStats, StorageTracker, Inventory } from "./Types.sol";
 
 import {
     SessionKey,
@@ -184,7 +184,8 @@ contract BattleNadsEntrypoint is Getters {
         if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
 
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
+        player.owner = _loadOwner(characterID);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -203,8 +204,8 @@ contract BattleNadsEntrypoint is Getters {
         if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
 
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
-        address owner = player.owner;
+        BattleNad memory player = _loadBattleNad(characterID, false);
+        player.owner = _loadOwner(characterID);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -215,7 +216,7 @@ contract BattleNadsEntrypoint is Getters {
         try this.handleAscend(player) returns (BattleNad memory result) {
             _storeBattleNad(result);
             // Commit ascend, return session key deposit to owner
-            SafeTransferLib.safeTransferETH(owner, msg.value);
+            SafeTransferLib.safeTransferETH(player.owner, msg.value);
         } catch {
             // Failed to commit ascend, return deposit to session key
             // TODO: still send to owner?
@@ -282,9 +283,8 @@ contract BattleNadsEntrypoint is Getters {
         // Call primary function inside of a try/catch so that gas abstraction reimbursement will persist if the
         // contract call fails
         try this.handlePlayerCreation(msg.sender, name, strength, vitality, dexterity, quickness, sturdiness, luck)
-        returns (BattleNad memory result) {
-            _storeBattleNad(result);
-            characterID = result.id;
+        returns (bytes32 _characterID) {
+            characterID = _characterID;
         } catch {
             // Emit event
         }
@@ -315,8 +315,8 @@ contract BattleNadsEntrypoint is Getters {
 
         try this.handleAllocatePoints(
             player, newStrength, newVitality, newDexterity, newQuickness, newSturdiness, newLuck
-        ) returns (BattleNad memory result) {
-            _storeBattleNad(result);
+        ) {
+            // pass
         } catch {
             // Emit event
         }

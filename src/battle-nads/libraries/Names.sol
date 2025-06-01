@@ -4,8 +4,6 @@ pragma solidity 0.8.28;
 import {
     BattleNad,
     BattleNadStats,
-    BattleInstance,
-    BattleArea,
     StorageTracker,
     Inventory,
     BalanceTracker,

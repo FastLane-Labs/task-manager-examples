@@ -111,20 +111,14 @@ struct BattleNadStats {
 
 struct BattleArea {
     uint8 playerCount;
-    uint32 sumOfPlayerLevels; // impossible to overflow
+    uint16 sumOfPlayerLevels; // impossible to overflow
     uint64 playerBitMap;
     uint8 monsterCount;
-    uint32 sumOfMonsterLevels; // impossible to overflow
+    uint16 sumOfMonsterLevels; // impossible to overflow
     uint64 monsterBitMap;
-    uint8 depth;
-    uint8 x;
-    uint8 y;
+    uint64 lastLogBlock;
+    uint8 lastLogIndex;
     bool update;
-}
-
-struct BattleInstance {
-    BattleArea area;
-    bytes32[64] combatants;
 }
 
 struct Weapon {

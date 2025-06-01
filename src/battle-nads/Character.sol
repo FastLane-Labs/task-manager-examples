@@ -126,21 +126,25 @@ abstract contract Character is Abilities {
         }
 
         if (uint256(victor.stats.level) < currentLevel) {
-            // Load area only if we're changing it
-            BattleArea memory area = _loadArea(victor.stats.depth, victor.stats.x, victor.stats.y);
-
-            uint256 levelDifference = currentLevel - uint256(victor.stats.level);
-            area.sumOfPlayerLevels += uint32(levelDifference);
-            area.update = true;
-
-            _storeArea(area);
-
             victor.stats.level = uint8(currentLevel);
 
-            emit Events.LevelUp(victor.areaID(), victor.id, currentLevel);
+            // Handle emission during points allocation to keep task gas low
+            // emit Events.LevelUp(victor.areaID(), victor.id, currentLevel);
         }
 
         return (victor, log);
+    }
+
+    function _updatePlayerLevelInArea(BattleNad memory character, uint256 newLevels) internal {
+        // Load area only if we're changing it
+        BattleArea memory area = _loadArea(character.stats.depth, character.stats.x, character.stats.y);
+
+        area.sumOfPlayerLevels += uint16(newLevels);
+        area.update = true;
+
+        _storeArea(area, character.stats.depth, character.stats.x, character.stats.y);
+
+        // emit Events.LevelUp(victor.areaID(), victor.id, currentLevel);
     }
 
     function _enterLocation(
@@ -159,7 +163,7 @@ abstract contract Character is Abilities {
         uint256 combinedBitMap = monsterBitMap | playerBitMap;
 
         if (combatant.isMonster()) {
-            area.sumOfMonsterLevels += uint32(combatant.stats.level);
+            area.sumOfMonsterLevels += uint16(combatant.stats.level);
             ++area.monsterCount;
 
             uint256 monsterBit = 1 << uint256(newIndex);
@@ -177,7 +181,7 @@ abstract contract Character is Abilities {
             }
 
             // Update the new area
-            area.sumOfPlayerLevels += uint32(combatant.stats.level);
+            area.sumOfPlayerLevels += uint16(combatant.stats.level);
             ++area.playerCount;
 
             uint256 playerBit = 1 << uint256(newIndex);
@@ -193,15 +197,10 @@ abstract contract Character is Abilities {
 
         // Update the combatant array
         uint256 combatantIndex = uint256(newIndex);
-        bytes32 combatantID;
-        unchecked {
-            combatantID = instances[newDepth][newX][newY].combatants[combatantIndex];
-        }
+        bytes32 combatantID = areaCombatants[newDepth][newX][newY][combatantIndex];
 
         if (combatantID == bytes32(0)) {
-            unchecked {
-                instances[newDepth][newX][newY].combatants[combatantIndex] = combatant.id;
-            }
+            areaCombatants[newDepth][newX][newY][combatantIndex] = combatant.id;
         } else {
             revert Errors.InvalidLocationIndex(combatantID);
         }
@@ -209,7 +208,7 @@ abstract contract Character is Abilities {
         // Return the combatant struct with updated location
         combatant = _updateLocation(combatant, newDepth, newX, newY, newIndex);
 
-        emit Events.CharacterEnteredArea(combatant.areaID(), combatant.id);
+        // emit Events.CharacterEnteredArea(combatant.areaID(), combatant.id);
 
         return (combatant, area);
     }
@@ -218,47 +217,41 @@ abstract contract Character is Abilities {
         BattleArea memory area = _loadArea(combatant.stats.depth, combatant.stats.x, combatant.stats.y);
 
         if (combatant.isMonster()) {
-            area.sumOfMonsterLevels -= uint32(combatant.stats.level);
+            area.sumOfMonsterLevels -= uint16(combatant.stats.level);
             --area.monsterCount;
 
             uint256 monsterBitMap = uint256(area.monsterBitMap);
             uint256 monsterBit = 1 << uint256(combatant.stats.index);
             if (monsterBitMap & monsterBit != 0) {
-                monsterBitMap ^= monsterBit;
+                monsterBitMap &= ~monsterBit;
                 area.monsterBitMap = uint64(monsterBitMap);
             }
         } else {
-            area.sumOfPlayerLevels -= uint32(combatant.stats.level);
+            area.sumOfPlayerLevels -= uint16(combatant.stats.level);
             --area.playerCount;
 
             uint256 playerBitMap = uint256(area.playerBitMap);
             uint256 playerBit = 1 << uint256(combatant.stats.index);
             if (playerBitMap & playerBit != 0) {
-                playerBitMap ^= playerBit;
+                playerBitMap &= ~playerBit;
                 area.playerBitMap = uint64(playerBitMap);
             }
         }
         area.update = true;
 
         // Store the area
-        _storeArea(area);
+        _storeArea(area, combatant.stats.depth, combatant.stats.x, combatant.stats.y);
 
         // Update the combatant array
         uint256 combatantIndex = uint256(combatant.stats.index);
-        bytes32 combatantID;
-        unchecked {
-            combatantID =
-                instances[combatant.stats.depth][combatant.stats.x][combatant.stats.y].combatants[combatantIndex];
-        }
+        bytes32 combatantID =
+            areaCombatants[combatant.stats.depth][combatant.stats.x][combatant.stats.y][combatantIndex];
 
         if (combatantID == combatant.id) {
-            unchecked {
-                instances[combatant.stats.depth][combatant.stats.x][combatant.stats.y].combatants[combatantIndex] =
-                    bytes32(0);
-            }
+            areaCombatants[combatant.stats.depth][combatant.stats.x][combatant.stats.y][combatantIndex] = _NULL_ID;
         }
 
-        emit Events.CharacterLeftArea(combatant.areaID(), combatant.id);
+        // emit Events.CharacterLeftArea(combatant.areaID(), combatant.id);
     }
 
     function _updateLocation(
@@ -282,8 +275,6 @@ abstract contract Character is Abilities {
     }
 
     function _processAttackerDeath(BattleNad memory attacker) internal returns (BattleNad memory) {
-        // TODO: Emit death event
-
         // Store dead character stats for scoreboard
         // _storeDeadBattleNadStats(attacker.stats, attacker.id);
 
@@ -296,7 +287,9 @@ abstract contract Character is Abilities {
         attacker.stats.x = 0;
         attacker.stats.y = 0;
 
-        if (!attacker.tracker.updateStats) attacker.tracker.updateStats = true;
+        if (attacker.tracker.updateStats) attacker.tracker.updateStats = false;
+
+        _deleteBattleNad(attacker);
 
         return attacker;
     }
@@ -313,7 +306,7 @@ abstract contract Character is Abilities {
 
         if (!defender.tracker.updateStats) defender.tracker.updateStats = true;
 
-        emit Events.PlayerDied(defender.areaID(), defender.id);
+        // emit Events.PlayerDied(defender.areaID(), defender.id);
 
         return defender;
     }

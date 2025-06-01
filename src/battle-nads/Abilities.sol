@@ -8,10 +8,8 @@ import {
     StatusEffect,
     BattleNadStats,
     BattleNad,
-    BattleInstance,
     Inventory,
     BalanceTracker,
-    BattleArea,
     LogType,
     Log
 } from "./Types.sol";
@@ -153,10 +151,12 @@ abstract contract Abilities is Classes {
                 nextBlock = block.number + 72; // Long cooldown
                 attacker.tracker.updateStats = true;
 
-                // Self heal
+                // CASE: Stunned
                 if (attacker.isStunned()) {
                     // A well-timed stun interupts the heal
-                } else if (defender.id == bytes32(0)) {
+
+                    // CASE: no target, so it's a self heal
+                } else if (!_isValidID(defender.id)) {
                     uint256 health = uint256(attacker.stats.health);
                     uint256 maxHealth = attacker.maxHealth;
                     healed =
@@ -303,7 +303,7 @@ abstract contract Abilities is Classes {
             attacker.activeAbility.stage = nextStage;
             attacker.activeAbility.targetBlock = uint64(nextBlock);
             if (!reschedule) {
-                attacker.activeAbility.taskAddress = address(0);
+                attacker.activeAbility.taskAddress = _EMPTY_ADDRESS;
                 attacker.activeAbility.ability = Ability.None;
                 attacker.activeAbility.targetIndex = uint8(0);
             }
@@ -325,7 +325,7 @@ abstract contract Abilities is Classes {
         if (block.number > targetBlock + 200) {
             attacker.activeAbility.stage = uint8(0);
             attacker.activeAbility.targetBlock = uint64(0);
-            attacker.activeAbility.taskAddress = address(0);
+            attacker.activeAbility.taskAddress = _EMPTY_ADDRESS;
             attacker.activeAbility.ability = Ability.None;
             attacker.activeAbility.targetIndex = uint8(0);
 

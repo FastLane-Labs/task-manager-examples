@@ -1,7 +1,9 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { BattleNad, BattleNadStats, BattleArea, Inventory, StorageTracker, CharacterClass } from "./Types.sol";
+import {
+    BattleNad, BattleNadStats, Inventory, StorageTracker, CharacterClass, Ability, AbilityTracker
+} from "./Types.sol";
 
 import { Constants } from "./Constants.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -28,12 +30,6 @@ abstract contract CharacterFactory is Character {
         internal
         returns (BattleNad memory character)
     {
-        // Make sure character is available and not already playing
-        bytes32 nameHash = keccak256(abi.encodePacked(name));
-        if (characterIDs[nameHash] != bytes32(0)) {
-            revert Errors.NameAlreadyExists(nameHash);
-        }
-
         if (bytes(name).length > _MAX_NAME_LENGTH) {
             revert Errors.NameTooLong(bytes(name).length);
         } else if (bytes(name).length < _MIN_NAME_LENGTH) {
@@ -41,6 +37,8 @@ abstract contract CharacterFactory is Character {
         }
 
         // Generate Character ID
+        bytes32 nameHash = keccak256(abi.encodePacked(name));
+
         uint256 nonce;
         unchecked {
             nonce = ++playerNonce;
@@ -49,13 +47,22 @@ abstract contract CharacterFactory is Character {
 
         {
             bytes32 previousID = characters[owner];
-            if (previousID != bytes32(0)) {
+            if (!_isValidID(previousID)) {
+                previousID = namesToIDs[nameHash];
+            }
+            if (_isValidID(previousID)) {
                 BattleNad memory oldCharacter = _loadBattleNad(previousID);
                 if (oldCharacter.stats.health != 0) {
                     revert Errors.OwnerAlreadyExists(owner);
                 }
+                /*
                 Inventory memory inventory = inventories[previousID];
-                balances.monsterSumOfBalances += inventory.balance;
+                if (inventory.balance > 0) {
+                    unchecked {
+                        balances.monsterSumOfBalances += inventory.balance;
+                    }
+                }
+                */
                 _deleteBattleNad(oldCharacter);
             }
         }
@@ -72,16 +79,23 @@ abstract contract CharacterFactory is Character {
         // Flag for storage updates
         character.tracker.updateInventory = true;
         character.tracker.updateStats = true;
+        character.tracker.updateOwner = true;
 
         // Add ownership data to storage
         characters[owner] = character.id;
-        owners[character.id] = owner;
-        characterIDs[nameHash] = character.id;
-        characterNames[character.id] = name; // TODO: Add a length limit on name
+        namesToIDs[nameHash] = character.id;
+        characterNames[character.id] = name;
+        abilityTasks[character.id] = AbilityTracker({
+            ability: Ability.None,
+            stage: 0,
+            targetIndex: 0,
+            taskAddress: _EMPTY_ADDRESS,
+            targetBlock: 0
+        });
 
         emit Events.CharacterCreated(character.id);
 
-        return _removeClassStatAdjustments(character);
+        return character;
     }
 
     function _createCharacterStats(

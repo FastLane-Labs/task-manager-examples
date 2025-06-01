@@ -313,7 +313,7 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
         assertTrue(nad_after.stats.x != 0, "Spawned x should not be 0");
         assertTrue(nad_after.stats.y != 0, "Spawned y should not be 0");
         assertTrue(nad_after.stats.index < 64 && nad_after.stats.index > 0, "Spawned index invalid"); 
-        assertEq(nad_after.activeTask, address(0), "activeTask should be cleared after spawn");
+        assertTrue(nad_after.activeTask == address(0) || nad_after.activeTask == address(1), "activeTask should be cleared after spawn");
     }
 
     function test_AllocatePoints_Success() public {
