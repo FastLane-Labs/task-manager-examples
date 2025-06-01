@@ -2,16 +2,7 @@
 pragma solidity 0.8.28;
 
 import {
-    CharacterClass,
-    Ability,
-    BattleNadStats,
-    BattleNad,
-    BattleInstance,
-    Inventory,
-    BalanceTracker,
-    BattleArea,
-    LogType,
-    Log
+    CharacterClass, Ability, BattleNadStats, BattleNad, Inventory, BalanceTracker, LogType, Log
 } from "./Types.sol";
 
 import { Logs } from "./Logs.sol";
@@ -92,7 +83,7 @@ abstract contract Classes is Logs, Constants {
         }
     }
 
-    function _addClassStatAdjustments(BattleNad memory combatant) internal pure returns (BattleNad memory) {
+    function _addClassStatAdjustments(BattleNad memory combatant) internal pure override returns (BattleNad memory) {
         if (!combatant.tracker.classStatsAdded) {
             combatant.stats = _handleAddClassStats(combatant.stats);
             combatant.tracker.classStatsAdded = true;

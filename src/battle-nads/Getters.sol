@@ -4,7 +4,6 @@ pragma solidity 0.8.28;
 import {
     BattleNad,
     BattleNadStats,
-    BattleInstance,
     BattleNadLite,
     Ability,
     AbilityTracker,
@@ -209,9 +208,6 @@ contract Getters is TaskHandler {
                 uint8 _y = y + j - 2;
 
                 BattleArea memory area = _loadArea(depth, _x, _y);
-                area.x = _x;
-                area.y = _y;
-                area.depth = depth;
 
                 miniMap[i][j] = area;
             }
@@ -296,7 +292,7 @@ contract Getters is TaskHandler {
         for (; i < 64; i++) {
             uint256 indexBit = 1 << i;
             if (combatantBitmap & indexBit != 0) {
-                combatantID = instances[stats.depth][stats.x][stats.y].combatants[i];
+                combatantID = areaCombatants[stats.depth][stats.x][stats.y][i];
                 if (combatantID != bytes32(0)) {
                     combatantIDsUncompressed[j] = combatantID;
                     ++j;
@@ -341,7 +337,7 @@ contract Getters is TaskHandler {
             uint256 indexBit = 1 << i;
             if (combinedBitmap & indexBit != 0) {
                 if (combatantBitmap & indexBit == 0) {
-                    bytes32 nonCombatantID = instances[stats.depth][stats.x][stats.y].combatants[i];
+                    bytes32 nonCombatantID = areaCombatants[stats.depth][stats.x][stats.y][i];
                     nonCombatantIDsUncompressed[i] = nonCombatantID;
                     ++j;
                 }

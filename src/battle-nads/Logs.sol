@@ -4,15 +4,14 @@ pragma solidity 0.8.28;
 import {
     BattleNadStats,
     BattleNad,
-    BattleInstance,
     Inventory,
     BalanceTracker,
-    BattleArea,
     LogType,
     Log,
     DataFeed,
     Ability,
-    AbilityTracker
+    AbilityTracker,
+    BattleArea
 } from "./Types.sol";
 
 import { Storage } from "./Storage.sol";
@@ -22,13 +21,21 @@ abstract contract Logs is Storage {
     bytes4 private constant _LOG_SPACE_SEED = 0x54296eab; // bytes4(keccak256("Log Space ID"));
     bytes4 private constant _CHAT_LOG_SEED = 0x4154879f; // bytes4(keccak256("Chat Log ID"));
 
-    function _logAscend(BattleNad memory character, uint256 cashedOutShMONAmount) internal {
+    function _logAscend(
+        BattleNad memory character,
+        BattleArea memory area,
+        uint256 cashedOutShMONAmount
+    )
+        internal
+        returns (BattleArea memory)
+    {
         // Create a movement log
         Log memory log;
         log.logType = LogType.Ascend;
         log.mainPlayerIndex = character.stats.index;
         log.value = uint128(cashedOutShMONAmount);
-        _storeLog(character, log);
+        area = _storeLog(character, area, log);
+        return area;
     }
 
     function _logLeftArea(BattleNad memory character) internal {
@@ -36,25 +43,45 @@ abstract contract Logs is Storage {
         Log memory log;
         log.logType = LogType.LeftArea;
         log.mainPlayerIndex = character.stats.index;
-        _storeLog(character, log);
+
+        // Load previous area (area in memory is new area)
+        BattleArea memory area = _loadArea(character.stats.depth, character.stats.x, character.stats.y);
+        area = _storeLog(character, area, log);
+        _storeArea(area, character.stats.depth, character.stats.x, character.stats.y);
     }
 
-    function _logEnteredArea(BattleNad memory character, uint8 monsterIndex) internal {
+    function _logEnteredArea(
+        BattleNad memory character,
+        BattleArea memory area,
+        uint8 monsterIndex
+    )
+        internal
+        returns (BattleArea memory)
+    {
         // Create a movement log
         Log memory log;
         log.logType = LogType.EnteredArea;
         log.mainPlayerIndex = character.stats.index;
         log.otherPlayerIndex = monsterIndex; // 0 = no monster
-        _storeLog(character, log);
+        area = _storeLog(character, area, log);
+        return area;
     }
 
-    function _logInstigatedCombat(BattleNad memory character, BattleNad memory target) internal {
+    function _logInstigatedCombat(
+        BattleNad memory character,
+        BattleNad memory target,
+        BattleArea memory area
+    )
+        internal
+        returns (BattleArea memory)
+    {
         // Create an instigated combat log
         Log memory log;
         log.logType = LogType.InstigatedCombat;
         log.mainPlayerIndex = character.stats.index;
         log.otherPlayerIndex = target.stats.index;
-        _storeLog(character, log);
+        area = _storeLog(character, area, log);
+        return area;
     }
 
     function _logAbility(
@@ -77,7 +104,10 @@ abstract contract Logs is Storage {
         log.lootedWeaponID = uint8(ability);
         log.lootedArmorID = uint8(stage);
         log.value = uint128(nextBlock);
-        _storeLog(attacker, log);
+
+        BattleArea memory area = _loadArea(attacker.stats.depth, attacker.stats.x, attacker.stats.y);
+        area = _storeLog(attacker, area, log);
+        _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
     }
 
     function _startCombatLog(
@@ -97,12 +127,30 @@ abstract contract Logs is Storage {
 
     function _getLogsForBlock(BattleNad memory character, uint256 blockNumber) internal view returns (Log[] memory) {
         bytes32 logSpaceID = _getLogSpaceID(character, blockNumber);
-        return logs[logSpaceID];
+        return _getLogsForBlock(logSpaceID);
     }
 
     function _getChatLog(bytes32 logSpaceID, uint256 chatLogIndex) internal view returns (string memory) {
         bytes32 chatLogID = _getChatLogID(logSpaceID, chatLogIndex);
         return chatLogs[chatLogID];
+    }
+
+    function _getLogsForBlock(bytes32 logSpaceID) internal view returns (Log[] memory thisBlocksLogs) {
+        uint256 logCount;
+        for (; logCount < 256;) {
+            Log memory log = logs[logSpaceID][logCount];
+            if (log.mainPlayerIndex == 0) break;
+            unchecked {
+                ++logCount;
+            }
+        }
+
+        thisBlocksLogs = new Log[](logCount);
+        for (uint256 i; i < logCount; i++) {
+            thisBlocksLogs[i] = logs[logSpaceID][i];
+        }
+
+        return thisBlocksLogs;
     }
 
     function _getDataFeedForBlock(
@@ -114,7 +162,7 @@ abstract contract Logs is Storage {
         returns (DataFeed memory dataFeed)
     {
         dataFeed.blockNumber = blockNumber;
-        dataFeed.logs = logs[logSpaceID];
+        dataFeed.logs = _getLogsForBlock(logSpaceID);
 
         uint256 chatLogCount = 0;
         for (uint256 i = 0; i < dataFeed.logs.length; i++) {
@@ -155,28 +203,61 @@ abstract contract Logs is Storage {
         return dataFeeds;
     }
 
-    function _storeLog(BattleNad memory character, Log memory log) internal {
+    function _storeLog(
+        BattleNad memory character,
+        BattleArea memory area,
+        Log memory log
+    )
+        internal
+        returns (BattleArea memory)
+    {
         bytes32 logSpaceID = _getLogSpaceID(character, block.number);
 
-        uint256 nextLogIndex = logs[logSpaceID].length;
+        uint64 thisBlock64 = uint64(block.number);
 
-        if (nextLogIndex >= type(uint16).max) {
-            revert Errors.TooManyLogs();
+        if (thisBlock64 != area.lastLogBlock) {
+            area.lastLogBlock = thisBlock64;
+            area.lastLogIndex = 0;
+        } else {
+            if (area.lastLogIndex == type(uint8).max) {
+                revert Errors.TooManyLogs();
+            }
+            ++area.lastLogIndex;
         }
+        area.update = true;
+        uint256 nextLogIndex = uint256(area.lastLogIndex);
 
         log.index = uint16(nextLogIndex);
+        logs[logSpaceID][nextLogIndex] = log;
 
-        logs[logSpaceID].push(log);
+        return area;
     }
 
-    function _storeChatLog(BattleNad memory character, string memory chat) internal {
+    function _storeChatLog(
+        BattleNad memory character,
+        BattleArea memory area,
+        string memory chat
+    )
+        internal
+        returns (BattleArea memory)
+    {
         bytes32 logSpaceID = _getLogSpaceID(character, block.number);
-        uint256 nextLogIndex = logs[logSpaceID].length;
-        bytes32 chatLogID = _getChatLogID(logSpaceID, nextLogIndex);
 
-        if (nextLogIndex >= type(uint16).max) {
-            revert Errors.TooManyLogs();
+        uint64 thisBlock64 = uint64(block.number);
+
+        if (thisBlock64 != area.lastLogBlock) {
+            area.lastLogBlock = thisBlock64;
+            area.lastLogIndex = 0;
+        } else {
+            if (area.lastLogIndex == type(uint8).max) {
+                revert Errors.TooManyLogs();
+            }
+            ++area.lastLogIndex;
         }
+        area.update = true;
+        uint256 nextLogIndex = uint256(area.lastLogIndex);
+
+        bytes32 chatLogID = _getChatLogID(logSpaceID, nextLogIndex);
 
         // Build the log (it will point to the chat entry)
         Log memory log;
@@ -184,8 +265,10 @@ abstract contract Logs is Storage {
         log.mainPlayerIndex = character.stats.index;
         log.index = uint16(nextLogIndex);
 
-        logs[logSpaceID].push(log);
+        logs[logSpaceID][nextLogIndex] = log;
         chatLogs[chatLogID] = chat;
+
+        return area;
     }
 
     function _getLogSpaceID(

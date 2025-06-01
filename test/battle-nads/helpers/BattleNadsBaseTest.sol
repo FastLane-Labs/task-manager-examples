@@ -10,7 +10,6 @@ import { BattleNadsWrapper } from "test/battle-nads/helpers/BattleNadsWrapper.so
 import {
     BattleNad,
     BattleNadStats,
-    BattleInstance,
     BattleArea,
     StorageTracker,
     Inventory,
@@ -39,10 +38,10 @@ contract BattleNadsBaseTest is BaseTest {
 
     // Common Actors
     address public constant cranker = address(71);
-    address public constant user1 = address(1);
-    address public constant user2 = address(2);
-    address public constant user3 = address(3);
-    address public constant user4 = address(4); // Added for more tests
+    address public constant user1 = address(7);
+    address public constant user2 = address(8);
+    address public constant user3 = address(9);
+    address public constant user4 = address(10); // Added for more tests
 
     // Common Session Keys
     address public constant userSessionKey1 = address(11);
@@ -369,7 +368,7 @@ contract BattleNadsBaseTest is BaseTest {
         BattleNad memory character = battleNads.getBattleNad(charId);
 
         // Don't use ability if one is already active
-        if (character.activeAbility.taskAddress != address(0)) {
+        if (character.activeAbility.taskAddress != address(0) && character.activeAbility.taskAddress != address(1)) {
             return false;
         }
 
@@ -546,6 +545,7 @@ contract BattleNadsBaseTest is BaseTest {
                 finalState.stats.combatants != before.stats.combatants
                     || finalState.stats.combatantBitMap != before.stats.combatantBitMap
                     || finalState.stats.health != before.stats.health || finalState.activeAbility.taskAddress == address(0)
+                    || finalState.activeAbility.taskAddress == address(1)
             );
         } catch {
             return false;

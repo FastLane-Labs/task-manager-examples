@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { BattleNad, BattleNadStats, BattleInstance, BattleArea, StorageTracker, Inventory } from "./Types.sol";
+import { BattleNad, BattleNadStats, BattleArea, StorageTracker, Inventory } from "./Types.sol";
 
 import { Combat } from "./Combat.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -12,12 +12,18 @@ abstract contract Instances is Combat {
     using Equipment for BattleNad;
     using Equipment for Inventory;
 
-    function _loadCombatant(BattleArea memory area, uint256 index) internal view returns (BattleNad memory combatant) {
-        bytes32 combatantID;
-        unchecked {
-            combatantID = instances[area.depth][area.x][area.y].combatants[index];
-        }
-        if (combatantID == bytes32(0)) {
+    function _loadCombatant(
+        uint8 depth,
+        uint8 x,
+        uint8 y,
+        uint256 index
+    )
+        internal
+        view
+        returns (BattleNad memory combatant)
+    {
+        bytes32 combatantID = areaCombatants[depth][x][y][index];
+        if (!_isValidID(combatantID)) {
             revert Errors.InvalidTargetIndex(index);
         }
         combatant = _loadBattleNad(combatantID);
@@ -94,7 +100,7 @@ abstract contract Instances is Combat {
 
     function _isValidTarget(BattleArea memory area, uint256 index) internal pure returns (bool) {
         uint256 combinedBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
-        return combinedBitmap & 1 << index != 0;
+        return combinedBitmap & (1 << index) != 0;
     }
 
     function _findNextIndex(BattleArea memory area, bytes32 randomSeed) internal view returns (uint8 newIndex) {
@@ -107,8 +113,7 @@ abstract contract Instances is Combat {
         do {
             // Increment loop
             unchecked {
-                ++index;
-                if (index > 63) {
+                if (++index > 63) {
                     index = 1;
                 }
             }
@@ -118,7 +123,7 @@ abstract contract Instances is Combat {
             if (combinedBitmap & indexBit == 0) {
                 return uint8(index);
             }
-        } while (gasleft() > 100_000);
+        } while (true);
     }
 
     function _validateLocationChange(BattleNad memory player, uint8 newDepth, uint8 newX, uint8 newY) internal pure {

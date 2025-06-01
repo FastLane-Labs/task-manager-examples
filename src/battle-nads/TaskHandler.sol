@@ -6,7 +6,7 @@ import { IShMonad } from "@fastlane-contracts/shmonad/interfaces/IShMonad.sol";
 import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
 import { IBattleNadsImplementation } from "./interfaces/IBattleNadsImplementation.sol";
 
-import { BattleNad, BattleNadStats, Inventory, Weapon, Armor, StorageTracker } from "./Types.sol";
+import { BattleNad, BattleNadStats, BattleArea, Inventory, Weapon, Armor, StorageTracker } from "./Types.sol";
 import { Handler } from "./Handler.sol";
 import { Names } from "./libraries/Names.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -33,8 +33,9 @@ contract TaskHandler is Handler {
         returns (bool reschedule, uint256 nextBlock, uint256 maxPayment)
     {
         // Load character
-        BattleNad memory attacker = _loadBattleNad(characterID);
-        _validateCalledByTask(attacker);
+        BattleNad memory attacker = _loadBattleNad(characterID, true);
+        attacker.activeTask = _loadActiveTask(characterID);
+        _validateCalledByTask(attacker.activeTask);
 
         // Handle turn
         uint256 targetBlock;
@@ -43,6 +44,9 @@ contract TaskHandler is Handler {
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
             // Calculate the maximum payment
+            if (!_isValidAddress(attacker.owner)) {
+                attacker.owner = _loadOwner(characterID);
+            }
             (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
@@ -50,6 +54,8 @@ contract TaskHandler is Handler {
                 _forceKill(attacker);
                 return (false, 0, 0);
             }
+        } else {
+            attacker = _setActiveTask(attacker, _EMPTY_ADDRESS);
         }
 
         // Store the data
@@ -65,8 +71,9 @@ contract TaskHandler is Handler {
         returns (bool reschedule, uint256 nextBlock, uint256 maxPayment)
     {
         // Load character
-        BattleNad memory attacker = _loadBattleNad(characterID);
-        _validateCalledByTask(attacker);
+        BattleNad memory attacker = _loadBattleNad(characterID, false);
+        attacker.activeTask = _loadActiveTask(characterID);
+        _validateCalledByTask(attacker.activeTask);
 
         // Handle spawn
         uint256 targetBlock;
@@ -75,7 +82,9 @@ contract TaskHandler is Handler {
         // Reschedule if necessary
         if (reschedule) {
             // Calculate the maximum payment and estimate
-            // Calculate the maximum payment
+            if (!_isValidAddress(attacker.owner)) {
+                attacker.owner = _loadOwner(characterID);
+            }
             (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
@@ -83,10 +92,11 @@ contract TaskHandler is Handler {
                 _forceKill(attacker);
                 return (false, 0, 0);
             }
+        } else {
+            // If successful, store the data
+            attacker = _setActiveTask(attacker, _EMPTY_ADDRESS);
         }
 
-        // If successful, store the data
-        attacker = _setActiveTask(attacker, address(0));
         _storeBattleNad(attacker);
         return (reschedule, nextBlock, maxPayment);
     }
@@ -100,21 +110,29 @@ contract TaskHandler is Handler {
         // Verify that the nad is still alive and not in combat
         if (player.isDead()) {
             player = _processAttackerDeath(player);
-            player = _setActiveTask(player, address(0));
+            player = _setActiveTask(player, _EMPTY_ADDRESS);
             _storeBattleNad(player);
             return;
         } else if (player.isInCombat()) {
-            player = _setActiveTask(player, address(0));
+            player = _setActiveTask(player, _EMPTY_ADDRESS);
             _storeBattleNad(player);
             return;
         }
 
+        uint8 depth = player.stats.depth;
+        uint8 x = player.stats.x;
+        uint8 y = player.stats.y;
+
         address owner = owners[characterID];
+        BattleArea memory area = _loadArea(depth, x, y);
 
         uint256 cashedOutShMONShares = _forceKill(player);
-        _logAscend(player, cashedOutShMONShares);
 
-        if (owner != address(0)) {
+        area = _logAscend(player, area, cashedOutShMONShares);
+
+        _storeArea(area, depth, x, y);
+
+        if (_isValidAddress(owner)) {
             SafeTransferLib.safeTransfer(SHMONAD, owner, cashedOutShMONShares);
         }
     }
@@ -125,10 +143,9 @@ contract TaskHandler is Handler {
         returns (bool reschedule, uint256 nextBlock, uint256 maxPayment)
     {
         // Load character
-        BattleNad memory attacker = _loadBattleNad(characterID);
-        attacker.activeAbility = _loadAbility(attacker.id);
-
-        _validateCalledByAbilityTask(attacker);
+        BattleNad memory attacker = _loadBattleNad(characterID, true);
+        attacker.activeAbility = _loadAbility(characterID);
+        _validateCalledByTask(attacker.activeAbility.taskAddress);
 
         // Handle spawn
         uint256 targetBlock;
@@ -137,6 +154,9 @@ contract TaskHandler is Handler {
         // Reschedule if necessary
         if (reschedule) {
             // Calculate the maximum payment
+            if (!_isValidAddress(attacker.owner)) {
+                attacker.owner = _loadOwner(characterID);
+            }
             (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
@@ -159,7 +179,7 @@ contract TaskHandler is Handler {
         override
         returns (BattleNad memory, bool success)
     {
-        if (combatant.owner == address(0)) {
+        if (!_isValidAddress(combatant.owner)) {
             revert Errors.CharacterNotOwned(combatant.id);
         }
 
@@ -200,7 +220,7 @@ contract TaskHandler is Handler {
         override
         returns (BattleNad memory, bool success)
     {
-        if (combatant.owner == address(0)) {
+        if (!_isValidAddress(combatant.owner)) {
             revert Errors.CharacterNotOwned(combatant.id);
         }
 
@@ -241,7 +261,7 @@ contract TaskHandler is Handler {
         override
         returns (BattleNad memory, bool success)
     {
-        if (combatant.owner == address(0)) {
+        if (!_isValidAddress(combatant.owner)) {
             revert Errors.CharacterNotOwned(combatant.id);
         }
 
@@ -305,14 +325,8 @@ contract TaskHandler is Handler {
         return combatant;
     }
 
-    function _validateCalledByTask(BattleNad memory combatant) internal view {
-        if (combatant.activeTask != msg.sender) {
-            revert Errors.InvalidCaller(msg.sender);
-        }
-    }
-
-    function _validateCalledByAbilityTask(BattleNad memory combatant) internal view {
-        if (combatant.activeAbility.taskAddress != msg.sender) {
+    function _validateCalledByTask(address activeTask) internal view {
+        if (activeTask != msg.sender) {
             revert Errors.InvalidCaller(msg.sender);
         }
     }

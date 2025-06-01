@@ -7,7 +7,6 @@ import { VmSafe } from "forge-std/Vm.sol";
 import {	
     BattleNad,	
     BattleNadStats,	
-    BattleInstance,	
     BattleArea,	
     StorageTracker,	
     Inventory,	
