@@ -379,7 +379,7 @@ contract TaskHandler is Handler {
         // Take the estimated amount from the payor and then bond it to task manager
         // If payor is address(this) then the shares aren't bonded
         if (payor == address(this)) {
-            _bondSharesToTaskManager(_convertMonToShMon(--amountEstimated));
+            _bondSharesToTaskManager(_convertDepositedMonToShMon(--amountEstimated));
         } else {
             _takeFromOwnerBondedAmountInUnderlying(payor, amountEstimated);
             _bondAmountToTaskManager(--amountEstimated);
