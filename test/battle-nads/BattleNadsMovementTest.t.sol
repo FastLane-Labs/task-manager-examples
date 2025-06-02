@@ -199,6 +199,11 @@ contract BattleNadsMovementTest is BattleNadsBaseTest, Constants {
         BattleNad memory nad_check = battleNads.getBattleNad(charId);
         uint8 depth = nad_check.stats.depth == 0 ? 1 : nad_check.stats.depth; // Use 1 if depth is 0
 
+        _modifyCharacterStat(charId, "x", newX);
+        _modifyCharacterStat(charId, "y", newY);
+        _modifyCharacterStat(charId, "depth", depth);
+
+        /*
         uint256 slot = 3; // Storage slot for characterStats mapping
         bytes32 statSlot = keccak256(abi.encode(charId, slot));
         uint256 packedData = uint256(vm.load(address(battleNads), statSlot));
@@ -218,6 +223,7 @@ contract BattleNadsMovementTest is BattleNadsBaseTest, Constants {
 
         vm.store(address(battleNads), statSlot, bytes32(packedData));
         // No _rollForward here
+        */
     }
 
     // TODO: Add tests from plan.md category 3:

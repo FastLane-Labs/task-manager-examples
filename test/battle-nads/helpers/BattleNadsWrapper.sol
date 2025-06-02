@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { BattleNadsEntrypoint } from "src/battle-nads/Entrypoint.sol";
-import { BattleNad, BattleNadLite, DataFeed, Log, LogType, Ability } from "src/battle-nads/Types.sol";
+import { BattleNad, BattleNadLite, DataFeed, Log, LogType, Ability, BattleNadStats } from "src/battle-nads/Types.sol";
 import { StatSheet } from "src/battle-nads/libraries/StatSheet.sol";
 import { console } from "forge-std/console.sol";
 
@@ -15,6 +15,14 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
 
     constructor(address taskManager, address shMonad) BattleNadsEntrypoint(taskManager, shMonad) {
         START_BLOCK = block.number;
+    }
+
+    function loadBattleNadStats(bytes32 characterID) public view returns (BattleNadStats memory stats) {
+        stats = _loadBattleNadStats(characterID);
+    }
+
+    function storeBattleNadStats(BattleNadStats memory stats, bytes32 characterID) public {
+        _storeBattleNadStats(stats, characterID);
     }
 
     function getLiteCombatants(address owner) public view returns (BattleNadLite[] memory liteCombatants) {

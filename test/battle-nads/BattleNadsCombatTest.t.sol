@@ -323,8 +323,8 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         
         BattleNad memory character = _battleNad(1);
         character.maxHealth = 100;
+        //character.stats.health = 50;
         
-        console.log("enemies:", uint256(character.stats.combatants));
 
         Log memory log;
         (BattleNad memory regenChar, Log memory regenLog) = battleNads.testRegenerateHealth(character, log);
@@ -339,6 +339,9 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         
         BattleNad memory inCombatChar = _battleNad(1);
         inCombatChar.maxHealth = 100;
+        //inCombatChar.stats.health = 80;
+        //inCombatChar.stats.combatants = 1;
+        //inCombatChar.stats.combatantBitMap = 2;
         
         Log memory combatLog;
         (BattleNad memory combatRegenChar, Log memory combatRegenLog) = battleNads.testRegenerateHealth(inCombatChar, combatLog);
@@ -362,6 +365,9 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         _modifyCharacterStat(character2, "health", 0); // Dead
         
         BattleNad memory vanquished = _battleNad(2);
+        //vanquished.stats.weaponID = 2;
+        //vanquished.stats.armorID = 3;
+        //vanquished.stats.health = 0;
         
         Log memory lootLog;
         (BattleNad memory looterAfter, Log memory lootLogAfter) = battleNads.testHandleLoot(looter, vanquished, lootLog);

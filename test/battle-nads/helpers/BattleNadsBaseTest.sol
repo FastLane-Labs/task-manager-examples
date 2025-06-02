@@ -449,6 +449,47 @@ contract BattleNadsBaseTest is BaseTest {
 
     /// @notice Helper to modify character stats using vm.store (moved from combat test)
     function _modifyCharacterStat(bytes32 charId, string memory statName, uint256 value) internal {
+        BattleNadStats memory stats = battleNads.loadBattleNadStats(charId);
+
+        if (keccak256(bytes(statName)) == keccak256("combatantBitMap")) {
+            stats.combatantBitMap = uint64(value);
+        } else if (keccak256(bytes(statName)) == keccak256("combatants")) {
+            stats.combatants = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("sumOfCombatantLevels")) {
+            stats.sumOfCombatantLevels = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("health")) {
+            stats.health = uint16(value);
+        } else if (keccak256(bytes(statName)) == keccak256("weaponID")) {
+            stats.weaponID = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("armorID")) {
+            stats.armorID = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("sturdiness")) {
+            stats.sturdiness = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("dexterity")) {
+            stats.dexterity = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("vitality")) {
+            stats.vitality = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("strength")) {
+            stats.strength = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("level")) {
+            stats.level = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("x")) {
+            stats.x = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("y")) {
+            stats.y = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("depth")) {
+            stats.depth = uint8(value);
+        } else if (keccak256(bytes(statName)) == keccak256("class")) {
+            stats.class = CharacterClass(uint8(value));
+        } else if (keccak256(bytes(statName)) == keccak256("unspentAttributePoints")) {
+            stats.unspentAttributePoints = uint8(value);
+        } else {
+            revert(string.concat("Unknown stat: ", statName));
+        }
+
+        battleNads.storeBattleNadStats(stats, charId);
+
+        /*
         uint256 slot = 3; // Storage slot for characterStats mapping
         bytes32 statSlot = keccak256(abi.encode(charId, slot));
         uint256 packedData = uint256(vm.load(address(battleNads), statSlot));
@@ -505,6 +546,7 @@ contract BattleNadsBaseTest is BaseTest {
         packedData |= (value << offset);
 
         vm.store(address(battleNads), statSlot, bytes32(packedData));
+        */
     }
 
     /// @notice Helper to use an ability and execute it, handling cooldowns properly
