@@ -120,7 +120,7 @@ contract BattleNadsTest is BattleNadsBaseTest {
         vm.prank(userSessionKey3);	
         // battleNads.useAbility(character3, monster.stats.index, 2);	
 
-        while (i < 25) {	
+        while (i < 8) {	
 
             player = _battleNad(3);	
             monster = _battleNad(opponentID);	
@@ -161,25 +161,29 @@ contract BattleNadsTest is BattleNadsBaseTest {
 
             ++i;	
 
-            console.log("===");
+            // console.log("===");
 
             _rollForward(2);	
-            battleNads.printLogs(user3);	
+            // battleNads.printLogs(user3);	
             _topUpBonded(3);		
         }	
+
+        monster = _battleNad(opponentID);
+        assertEq(monster.stats.health, uint16(0), "Monster not dead");
 
         console.log("");	
         console.log("Combat Over");	
         console.log("====================");	
         console.log("");	
+        /*
         battleNads.printBattleNad(_battleNad(3));	
         console.log("");	
         battleNads.printBattleNad(_battleNad(opponentID));	
 
         console.log("=FINAL=");
-
+        */
         _rollForward(2);		
-
+        /*
         console.log("");	
         battleNads.printBattleNad(_battleNad(3));	
         console.log("");	
@@ -189,6 +193,7 @@ contract BattleNadsTest is BattleNadsBaseTest {
         battleNads.printBattleNad(_battleNad(3));	
         console.log("");	
         battleNads.printBattleNad(_battleNad(opponentID));	
+        */
 
         // _rollForward(16);	
         // battleNads.printBattleNad(_battleNad(3));	
