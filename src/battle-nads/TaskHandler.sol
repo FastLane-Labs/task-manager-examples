@@ -10,6 +10,7 @@ import { BattleNad, BattleNadStats, BattleArea, Inventory, Weapon, Armor, Storag
 import { Handler } from "./Handler.sol";
 import { Names } from "./libraries/Names.sol";
 import { Errors } from "./libraries/Errors.sol";
+import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 
 import { BattleNadsImplementation } from "./tasks/BattleNadsImplementation.sol";
@@ -368,13 +369,14 @@ contract TaskHandler is Handler {
         (amountEstimated, targetBlock) =
             _getNextAffordableBlock(maxPayment, targetBlock, highestAcceptableBlock, taskGas, searchGas);
 
+        if (targetBlock == 0 || amountEstimated == 0 || amountEstimated > maxPayment) {
+            emit Events.TaskNotScheduled(maxPayment, amountEstimated, targetBlock);
+            return (success, taskID, blockNumber, amountPaid);
+        }
+
         // Increase amountEstimated by 1 so that we can send 1 MON to the task to heat up its balance
         // so that it isn't a cold value xfer in the task's thread.
         ++amountEstimated;
-
-        if (targetBlock == 0 || amountEstimated > maxPayment) {
-            return (success, taskID, blockNumber, amountPaid);
-        }
 
         // Take the estimated amount from the payor and then bond it to task manager
         // If payor is address(this) then the shares aren't bonded

@@ -9,7 +9,7 @@
   evm_version = "cancun"
   via_ir = true
   isolate = false
-  gas_reports = ["ExecutionEnvironment"]
+  gas_reports = ["BattleNadsEntrypoint", "TaskHandler"]
   fs_permissions = [{ access = "read-write", path = "./"}]
   json = true
 

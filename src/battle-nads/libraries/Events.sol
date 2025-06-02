@@ -25,4 +25,5 @@ library Events {
     event LootedNewArmor(bytes32 indexed areaID, bytes32 indexed characterID, uint8 armorID, string armorName);
     event LootedShMON(bytes32 indexed areaID, bytes32 indexed characterID, uint256 shMonAmount);
     event PlayerDied(bytes32 indexed areaID, bytes32 indexed characterID);
+    event TaskNotScheduled(uint256 maxPayment, uint256 amountEstimated, uint256 targetBlock);
 }
