@@ -84,10 +84,7 @@ abstract contract Balances is GasRelayBase, Instances {
         returns (BattleNad memory, BattleNad memory, Log memory)
     {
         // Load the balances
-        BalanceTracker memory balanceTracker;
-        unchecked {
-            balanceTracker = balances;
-        }
+        BalanceTracker memory balanceTracker = balances;
         uint256 defeatedBalance;
 
         // Decrement losing side
@@ -152,9 +149,7 @@ abstract contract Balances is GasRelayBase, Instances {
         }
 
         // Store the BalanceTracker
-        unchecked {
-            balances = balanceTracker;
-        }
+        balances = balanceTracker;
 
         return (victor, defeated, log);
     }
@@ -162,44 +157,39 @@ abstract contract Balances is GasRelayBase, Instances {
     function _allocateOverchargeToMonsters(uint256 shares) internal {
         if (shares == 0) return;
 
-        BalanceTracker memory balanceTracker;
-        unchecked {
-            balanceTracker = balances;
-        }
+        BalanceTracker memory balanceTracker = balances;
 
         // Add the portion
         balanceTracker.monsterSumOfBalances += uint128(shares);
 
         // Store the BalanceTracker
-        unchecked {
-            balances = balanceTracker;
-        }
+        balances = balanceTracker;
     }
 
     function _getBuyInAmountInShMON() internal view returns (uint256 minBondedShares) {
         minBondedShares = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT
-            + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+            + (32 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getBuyInAmountInMON() internal view returns (uint256 minAmount) {
-        minAmount = _convertShMonToMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT)
+        minAmount = _convertShMonToDepositedMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT)
             + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
     }
 
     function _getRecommendedBalanceInShMON() internal view returns (uint256 minBondedShares) {
-        minBondedShares =
-            MIN_BONDED_AMOUNT + (32 * _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+        minBondedShares = MIN_BONDED_AMOUNT
+            + (32 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getRecommendedBalanceInMON() internal view returns (uint256 minAmount) {
-        minAmount =
-            _convertShMonToMon(MIN_BONDED_AMOUNT) + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+        minAmount = _convertShMonToDepositedMon(MIN_BONDED_AMOUNT)
+            + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
     }
 
     // If a player's bonded balance drops below this amount and they can't reschedule a task then
     // they are removed from combat and at risk of deletion
     function _deletionFloorShares() internal view returns (uint256 minShares) {
-        minShares = _convertMonToShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)) * 2;
+        minShares = _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)) * 2;
     }
 
     // Override the _minBondedShares value in GasRelayBase.sol so that the session key doesn't

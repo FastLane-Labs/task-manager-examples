@@ -482,7 +482,7 @@ contract Getters is TaskHandler {
         uint256 sessionKeyDeficitAmount = _sessionKeyBalanceDeficit(sessionKeyAddress);
 
         uint256 currentBondedShares = _sharesBondedToThis(player.owner);
-        uint256 currentBondedAmount = currentBondedShares == 0 ? 0 : _convertShMonToMon(currentBondedShares) - 1;
+        uint256 currentBondedAmount = currentBondedShares == 0 ? 0 : _convertWithdrawnShMonToMon(currentBondedShares);
 
         uint256 recommendedAmount = _getRecommendedBalanceInMON();
 
