@@ -47,7 +47,7 @@ contract TaskHandler is Handler {
             if (!_isValidAddress(attacker.owner)) {
                 attacker.owner = _loadOwner(characterID);
             }
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
+            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(msg.sender, attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
             if (!reschedule || nextBlock == 0) {
@@ -85,7 +85,7 @@ contract TaskHandler is Handler {
             if (!_isValidAddress(attacker.owner)) {
                 attacker.owner = _loadOwner(characterID);
             }
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
+            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(msg.sender, attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
             if (!reschedule || nextBlock == 0) {
@@ -157,7 +157,7 @@ contract TaskHandler is Handler {
             if (!_isValidAddress(attacker.owner)) {
                 attacker.owner = _loadOwner(characterID);
             }
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(attacker.owner, targetBlock);
+            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(msg.sender, attacker.owner, targetBlock);
 
             // Force kill the character if they can't maintain their task.
             if (!reschedule || nextBlock == 0) {
@@ -206,6 +206,10 @@ contract TaskHandler is Handler {
             // Get the task address, flag for storage in the future
             address taskAddress = address(uint160(uint256(taskID)));
             combatant = _setActiveTask(combatant, taskAddress);
+
+            // Xfer 1 to it so that it doesn't need a cold value xfer
+            // during task rescheduling
+            SafeTransferLib.safeTransferETH(taskAddress, 1);
         }
 
         // Return combatant
@@ -289,6 +293,8 @@ contract TaskHandler is Handler {
             combatant.activeAbility.taskAddress = address(uint160(uint256(taskID)));
             combatant.activeAbility.targetBlock = uint64(targetBlock);
             combatant.tracker.updateActiveAbility = true;
+
+            SafeTransferLib.safeTransferETH(combatant.activeAbility.taskAddress, 1);
         }
 
         // Return combatant
@@ -362,6 +368,10 @@ contract TaskHandler is Handler {
         (amountEstimated, targetBlock) =
             _getNextAffordableBlock(maxPayment, targetBlock, highestAcceptableBlock, taskGas, searchGas);
 
+        // Increase amountEstimated by 1 so that we can send 1 MON to the task to heat up its balance
+        // so that it isn't a cold value xfer in the task's thread.
+        ++amountEstimated;
+
         if (targetBlock == 0 || amountEstimated > maxPayment) {
             return (success, taskID, blockNumber, amountPaid);
         }
@@ -369,10 +379,10 @@ contract TaskHandler is Handler {
         // Take the estimated amount from the payor and then bond it to task manager
         // If payor is address(this) then the shares aren't bonded
         if (payor == address(this)) {
-            _bondSharesToTaskManager(_convertMonToShMon(amountEstimated));
+            _bondSharesToTaskManager(_convertMonToShMon(--amountEstimated));
         } else {
             _takeFromOwnerBondedAmountInUnderlying(payor, amountEstimated);
-            _bondAmountToTaskManager(amountEstimated);
+            _bondAmountToTaskManager(--amountEstimated);
         }
 
         // Reset the gas limits
@@ -401,6 +411,7 @@ contract TaskHandler is Handler {
     }
 
     function _rescheduleTaskAccounting(
+        address task,
         address payor,
         uint256 targetBlock
     )
@@ -423,8 +434,11 @@ contract TaskHandler is Handler {
         }
 
         // Handle payment
-        _takeFromOwnerBondedAmountInUnderlying(payor, amountEstimated);
-        _bondAmountToTaskManager(amountEstimated);
+        // _takeFromOwnerBondedAmountInUnderlying(payor, amountEstimated);
+        // _bondAmountToTaskManager(amountEstimated);
+
+        // Send rescheduling cost to the task as MON
+        IShMonad(SHMONAD).agentWithdrawFromBonded(POLICY_ID, payor, task, amountEstimated, 0, true);
 
         return (true, nextBlock, amountEstimated);
     }

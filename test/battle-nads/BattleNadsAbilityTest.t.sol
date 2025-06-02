@@ -51,7 +51,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
             
             // Wait for potential execution
             BattleNad memory withAbility = battleNads.getBattleNad(character);
-            if (withAbility.activeAbility.taskAddress != address(0)) {
+            if (withAbility.activeAbility.taskAddress != address(0) && withAbility.activeAbility.taskAddress != address(1)) {
                 console.log("Ability task was scheduled");
                 uint256 targetBlock = uint256(withAbility.activeAbility.targetBlock);
                 if (targetBlock > block.number) {
@@ -114,7 +114,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
         
         // Check if ability was scheduled as task or executed immediately
         BattleNad memory afterAbility = battleNads.getBattleNad(character);
-        bool isTaskScheduled = afterAbility.activeAbility.taskAddress != address(0);
+        bool isTaskScheduled = afterAbility.activeAbility.taskAddress != address(0) && afterAbility.activeAbility.taskAddress != address(1);
         
         if (isTaskScheduled) {
             console.log("Ability was scheduled as task - waiting for execution");
@@ -187,7 +187,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
             battleNads.useAbility(character, targetIndex, offensiveAbilityIndex);
             
             BattleNad memory withTarget = battleNads.getBattleNad(character);
-            console.log("With valid target - task scheduled:", withTarget.activeAbility.taskAddress != address(0));
+            console.log("With valid target - task scheduled:", withTarget.activeAbility.taskAddress != address(0) && withTarget.activeAbility.taskAddress != address(1));
             // The ability should work with a valid target
             assertTrue(true, "Ability usage with target completed");
         }
@@ -224,7 +224,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
         BattleNad memory withChargeUp = battleNads.getBattleNad(character);
         console.log("ChargeUp ability type:", uint256(withChargeUp.activeAbility.ability));
         // Don't assert specific ability type, just check it was scheduled
-        assertTrue(withChargeUp.activeAbility.taskAddress != address(0), "Should schedule ChargeUp ability");
+        assertTrue(withChargeUp.activeAbility.taskAddress != address(0) && withChargeUp.activeAbility.taskAddress != address(1), "Should schedule ChargeUp ability");
         
         // Wait for execution
         uint256 targetBlock = uint256(withChargeUp.activeAbility.targetBlock);
@@ -243,7 +243,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
             BattleNad memory withOffensiveAbility = battleNads.getBattleNad(character);
             console.log("Offensive ability type:", uint256(withOffensiveAbility.activeAbility.ability));
             // Don't assert specific ability type, just check it was scheduled with correct target
-            assertTrue(withOffensiveAbility.activeAbility.taskAddress != address(0), "Should schedule offensive ability");
+            assertTrue(withOffensiveAbility.activeAbility.taskAddress != address(0) && withOffensiveAbility.activeAbility.taskAddress != address(1), "Should schedule offensive ability");
             
             // Only assert target if we actually found one
             if (withOffensiveAbility.activeAbility.targetIndex != 0) {
@@ -287,7 +287,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
         BattleNad memory withOffensiveAbility = battleNads.getBattleNad(character);
         console.log("Offensive ability type:", uint256(withOffensiveAbility.activeAbility.ability));
         // Don't assert specific ability type, just check it was scheduled with target
-        assertTrue(withOffensiveAbility.activeAbility.taskAddress != address(0), "Should schedule offensive ability");
+        assertTrue(withOffensiveAbility.activeAbility.taskAddress != address(0) && withOffensiveAbility.activeAbility.taskAddress != address(1), "Should schedule offensive ability");
         assertEq(withOffensiveAbility.activeAbility.targetIndex, targetIndex, "Should target correct enemy");
         
         // Wait for execution
@@ -303,7 +303,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
         BattleNad memory withDefensiveAbility = battleNads.getBattleNad(character);
         console.log("Defensive ability type:", uint256(withDefensiveAbility.activeAbility.ability));
         // Don't assert specific ability type, just check basic behavior
-        if (withDefensiveAbility.activeAbility.taskAddress != address(0)) {
+        if (withDefensiveAbility.activeAbility.taskAddress != address(0) && withDefensiveAbility.activeAbility.taskAddress != address(1)) {
             console.log("Defensive ability was scheduled");
         } else {
             console.log("Defensive ability completed immediately or was not scheduled");
@@ -331,7 +331,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
         
         // Check if the ability was scheduled as a task
         BattleNad memory withActiveAbility = battleNads.getBattleNad(character);
-        bool hasActiveTask = withActiveAbility.activeAbility.taskAddress != address(0);
+        bool hasActiveTask = withActiveAbility.activeAbility.taskAddress != address(0) && withActiveAbility.activeAbility.taskAddress != address(1);
         
         if (hasActiveTask) {
             console.log("First ability was scheduled as task - testing cooldown");
@@ -419,7 +419,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
             console.log("Initial ability stage:", initialStage);
             
             // Execute ability and check if stage progresses
-            if (withAbility.activeAbility.taskAddress != address(0)) {
+            if (withAbility.activeAbility.taskAddress != address(0) && withAbility.activeAbility.taskAddress != address(1)) {
                 uint256 targetBlock = uint256(withAbility.activeAbility.targetBlock);
                 if (targetBlock > block.number) {
                     _rollForward(targetBlock - block.number + 1);

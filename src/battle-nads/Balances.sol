@@ -54,13 +54,11 @@ abstract contract Balances is GasRelayBase, Instances {
 
         // Allocate a portion of it to the player
         uint256 playerPortion = BUY_IN_AMOUNT * PLAYER_ALLOCATION / BALANCE_BASE;
-        uint256 monsterPortion = BUY_IN_AMOUNT - playerPortion;
+        uint256 monsterPortion = BUY_IN_AMOUNT - playerPortion; // - 1;
+        // _bondSharesToTaskManager(1); // prevent null value cold storage write
 
         // Load the monster balances
-        BalanceTracker memory balanceTracker;
-        unchecked {
-            balanceTracker = balances;
-        }
+        BalanceTracker memory balanceTracker = balances;
 
         // Increment the counts and monster balance
         ++balanceTracker.playerCount;
@@ -68,9 +66,7 @@ abstract contract Balances is GasRelayBase, Instances {
         balanceTracker.monsterSumOfBalances += uint128(monsterPortion);
 
         // Store the BalanceTracker
-        unchecked {
-            balances = balanceTracker;
-        }
+        balances = balanceTracker;
 
         // Increment the player's balance in their own inventory
         character.inventory.balance += uint128(playerPortion);
