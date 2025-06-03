@@ -348,9 +348,8 @@ abstract contract Combat is MonsterFactory {
 
             combatant.stats.health = uint16(currentHealth);
         } else {
-            
             emit Events.CombatHealthRecovered(
-            combatant.areaID(), combatant.id, adjustedHealthRegeneration, currentHealth + adjustedHealthRegeneration
+                combatant.areaID(), combatant.id, adjustedHealthRegeneration, currentHealth + adjustedHealthRegeneration
             );
 
             log.healthHealed = uint16(adjustedHealthRegeneration);
