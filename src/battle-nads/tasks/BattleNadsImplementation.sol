@@ -18,7 +18,7 @@ contract BattleNadsImplementation {
     address private immutable _IMPLEMENTATION;
 
     address private constant _SHMONAD = address(0x3a98250F98Dd388C211206983453837C8365BDc1);
-    uint256 private constant _MIN_RESCHEDULE_GAS = 45_500;
+    uint256 private constant _MIN_RESCHEDULE_GAS = 36_000;
 
     constructor() {
         _BATTLE_NADS = msg.sender;
