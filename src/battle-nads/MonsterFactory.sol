@@ -89,7 +89,7 @@ abstract contract MonsterFactory is CharacterFactory {
         monster.owner = player.owner;
         owners[monster.id] = player.owner;
 
-        // emit Events.MonsterCreated(monster.id);
+        emit Events.MonsterCreated(monster.id);
 
         monster.inventory = monster.inventory.addWeaponToInventory(monster.stats.weaponID);
         monster.inventory = monster.inventory.addArmorToInventory(monster.stats.armorID);

@@ -129,7 +129,7 @@ abstract contract Character is Abilities {
             victor.stats.level = uint8(currentLevel);
 
             // Handle emission during points allocation to keep task gas low
-            // emit Events.LevelUp(victor.areaID(), victor.id, currentLevel);
+            emit Events.LevelUp(victor.areaID(), victor.id, currentLevel);
         }
 
         return (victor, log);
@@ -144,7 +144,7 @@ abstract contract Character is Abilities {
 
         _storeArea(area, character.stats.depth, character.stats.x, character.stats.y);
 
-        // emit Events.LevelUp(victor.areaID(), victor.id, currentLevel);
+        emit Events.LevelUp(character.areaID(), character.id, character.stats.level);
     }
 
     function _enterLocation(
@@ -208,7 +208,7 @@ abstract contract Character is Abilities {
         // Return the combatant struct with updated location
         combatant = _updateLocation(combatant, newDepth, newX, newY, newIndex);
 
-        // emit Events.CharacterEnteredArea(combatant.areaID(), combatant.id);
+        emit Events.CharacterEnteredArea(combatant.areaID(), combatant.id);
 
         return (combatant, area);
     }
@@ -251,7 +251,7 @@ abstract contract Character is Abilities {
             areaCombatants[combatant.stats.depth][combatant.stats.x][combatant.stats.y][combatantIndex] = _NULL_ID;
         }
 
-        // emit Events.CharacterLeftArea(combatant.areaID(), combatant.id);
+        emit Events.CharacterLeftArea(combatant.areaID(), combatant.id);
     }
 
     function _updateLocation(
@@ -306,7 +306,7 @@ abstract contract Character is Abilities {
 
         if (!defender.tracker.updateStats) defender.tracker.updateStats = true;
 
-        // emit Events.PlayerDied(defender.areaID(), defender.id);
+        emit Events.PlayerDied(defender.areaID(), defender.id);
 
         return defender;
     }

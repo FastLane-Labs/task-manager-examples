@@ -88,7 +88,7 @@ abstract contract Combat is MonsterFactory {
         BattleNad memory sally
     )
         internal
-        view
+        pure
         returns (BattleNad memory, BattleNad memory)
     {
         uint256 beatriceBitmap = uint256(beatrice.stats.combatantBitMap);
@@ -120,8 +120,6 @@ abstract contract Combat is MonsterFactory {
             }
             if (!sally.tracker.updateStats) sally.tracker.updateStats = true;
         }
-
-        // emit Events.CharactersEnteredCombat(beatrice.areaID(), beatrice.id, sally.id);
 
         return (beatrice, sally);
     }
@@ -307,7 +305,7 @@ abstract contract Combat is MonsterFactory {
             uint256 recovered = maxHealth > currentHealth ? maxHealth - currentHealth : 0;
             log.healthHealed = uint16(recovered);
 
-            // emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
+            emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
 
             combatant.stats.health = uint16(maxHealth);
             return (combatant, log);
@@ -344,17 +342,16 @@ abstract contract Combat is MonsterFactory {
 
             log.healthHealed = uint16(recovered);
 
-            // emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
+            emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
 
             currentHealth += recovered;
 
             combatant.stats.health = uint16(currentHealth);
         } else {
-            /*
+            
             emit Events.CombatHealthRecovered(
             combatant.areaID(), combatant.id, adjustedHealthRegeneration, currentHealth + adjustedHealthRegeneration
             );
-            */
 
             log.healthHealed = uint16(adjustedHealthRegeneration);
 
@@ -381,7 +378,7 @@ abstract contract Combat is MonsterFactory {
         log.hit = isHit;
         log.critical = isCritical;
         if (!isHit) {
-            // emit Events.CombatMiss(attacker.areaID(), attacker.id, defender.id);
+            emit Events.CombatMiss(attacker.areaID(), attacker.id, defender.id);
 
             return (attacker, defender, log);
         }
@@ -602,7 +599,7 @@ abstract contract Combat is MonsterFactory {
         uint256 vanquishedWeaponBit = 1 << uint256(vanquished.stats.weaponID);
         uint256 weaponBitmap = uint256(self.inventory.weaponBitmap);
         if (weaponBitmap & vanquishedWeaponBit == 0) {
-            // emit Events.LootedNewWeapon(self.areaID(), self.id, vanquished.stats.weaponID, vanquished.weapon.name);
+            emit Events.LootedNewWeapon(self.areaID(), self.id, vanquished.stats.weaponID, vanquished.weapon.name);
             weaponBitmap |= vanquishedWeaponBit;
             self.inventory.weaponBitmap = uint64(weaponBitmap);
             self.tracker.updateInventory = true;
@@ -612,7 +609,7 @@ abstract contract Combat is MonsterFactory {
         uint256 vanquishedArmorBit = 1 << uint256(vanquished.stats.armorID);
         uint256 armorBitmap = uint256(self.inventory.armorBitmap);
         if (armorBitmap & vanquishedArmorBit == 0) {
-            // emit Events.LootedNewArmor(self.areaID(), self.id, vanquished.stats.armorID, vanquished.armor.name);
+            emit Events.LootedNewArmor(self.areaID(), self.id, vanquished.stats.armorID, vanquished.armor.name);
             armorBitmap |= vanquishedArmorBit;
             self.inventory.armorBitmap = uint64(armorBitmap);
             self.tracker.updateInventory = true;

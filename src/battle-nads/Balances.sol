@@ -145,7 +145,7 @@ abstract contract Balances is GasRelayBase, Instances {
             if (!victor.tracker.updateInventory) victor.tracker.updateInventory = true;
 
             // Emit event
-            // emit Events.LootedShMON(victor.areaID(), victor.id, defeatedBalance);
+            emit Events.LootedShMON(victor.areaID(), victor.id, defeatedBalance);
         }
 
         // Store the BalanceTracker

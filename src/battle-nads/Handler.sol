@@ -292,7 +292,7 @@ abstract contract Handler is Balances {
         }
 
         // Emit event with the message
-        // emit Events.ChatMessage(player.areaID(), player.id, message);
+        emit Events.ChatMessage(player.areaID(), player.id, message);
 
         // Load area
         BattleArea memory area = _loadArea(player);
