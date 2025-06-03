@@ -71,7 +71,7 @@ contract Constants {
     uint256 internal constant PLAYER_ALLOCATION = 75;
     uint256 internal constant MONSTER_ALLOCATION = 20;
 
-    uint256 internal constant TASK_GAS = 249_000;
+    uint256 internal constant TASK_GAS = 299_000;
     uint256 internal constant TARGET_MIN_TASK_COUNT = 8;
     uint256 internal constant ESCROW_DURATION = 16;
     uint256 internal constant GAS_BUFFER = 30_000;
