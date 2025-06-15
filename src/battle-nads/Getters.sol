@@ -19,7 +19,7 @@ import {
     SessionKey,
     SessionKeyData,
     GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 import { TaskHandler } from "./TaskHandler.sol";
 import { Errors } from "./libraries/Errors.sol";

@@ -12,7 +12,8 @@ import {
     AbilityTracker,
     LogType,
     Log,
-    PayoutTracker
+    PayoutTracker,
+    Ability
 } from "./Types.sol";
 
 import { Errors } from "./libraries/Errors.sol";
@@ -45,11 +46,14 @@ abstract contract Storage {
     // keccak(Character Name) -> Character ID
     mapping(bytes32 => bytes32) public namesToIDs;
 
-    // Character (or monster) ID -> Combat Task Address
-    mapping(bytes32 => address) public characterTasks;
+    // Character (or monster) ID -> Combat Task ID
+    mapping(bytes32 => bytes32) public characterTasks;
 
     // Character (or monster) ID -> Ability Task address
     mapping(bytes32 => AbilityTracker) public abilityTasks;
+
+    // Deceased Character ID -> Killer Character ID or standin
+    mapping(bytes32 => bytes32) public killMap;
 
     // Depth ID -> X -> Y -> BattleArea
     mapping(uint8 => mapping(uint8 => mapping(uint8 => BattleArea))) public areaData;
@@ -81,6 +85,9 @@ abstract contract Storage {
     // PLACEHOLDER NULL VALUES FOR GAS OPTIMIZATION
     address internal constant _EMPTY_ADDRESS = address(uint160(uint256(1)));
     bytes32 internal constant _NULL_ID = bytes32(uint256(1));
+    bytes32 internal constant _UNKILLED = bytes32(uint256(2));
+    bytes32 internal constant _KILL_PROCESSED = bytes32(uint256(3));
+    bytes32 internal constant _SYSTEM_KILLER = bytes32(uint256(4));
 
     function _loadArea(uint8 depth, uint8 x, uint8 y) internal view returns (BattleArea memory area) {
         area = areaData[depth][x][y];
@@ -93,6 +100,15 @@ abstract contract Storage {
     function _storeArea(BattleArea memory area, uint8 depth, uint8 x, uint8 y) internal {
         if (area.update) {
             area.update = false;
+            if (area.playerBitMap == 0 && area.monsterBitMap == 0) {
+                area = _clearArea(area);
+            } else if (area.playerBitMap == 0) {
+                area.playerCount = 0;
+                area.sumOfPlayerLevels = 0;
+            } else if (area.monsterBitMap == 0) {
+                area.monsterCount = 0;
+                area.sumOfMonsterLevels = 0;
+            }
             areaData[depth][x][y] = area;
         }
     }
@@ -112,7 +128,7 @@ abstract contract Storage {
 
     function _loadBattleNad(bytes32 characterID) internal view returns (BattleNad memory) {
         BattleNad memory character = _loadBattleNad(characterID, false);
-        character.activeTask = characterTasks[characterID];
+        // character.activeTask = characterTasks[characterID];
         character.owner = owners[characterID];
         return character;
     }
@@ -125,21 +141,83 @@ abstract contract Storage {
         activeAbility = abilityTasks[characterID];
     }
 
-    function _loadActiveTask(bytes32 characterID) internal view returns (address task) {
-        task = characterTasks[characterID];
+    function _loadActiveTaskAddress(bytes32 characterID) internal view returns (address taskAddress) {
+        taskAddress = address(uint160(uint256(characterTasks[characterID])));
+    }
+
+    function _loadActiveTaskID(bytes32 characterID) internal view returns (bytes32 taskID) {
+        taskID = characterTasks[characterID];
+    }
+
+    function _clearActiveTask(bytes32 characterID) internal {
+        characterTasks[characterID] = _NULL_ID;
+    }
+
+    function _storeActiveTask(bytes32 characterID, bytes32 taskID) internal {
+        characterTasks[characterID] = taskID;
+    }
+
+    function _clearAbility(bytes32 characterID) internal {
+        abilityTasks[characterID] = AbilityTracker({
+            ability: Ability.None,
+            stage: uint8(0),
+            targetIndex: uint8(0),
+            taskAddress: _EMPTY_ADDRESS,
+            targetBlock: uint64(0)
+        });
+    }
+
+    function _clearArea(BattleArea memory area) internal pure returns (BattleArea memory) {
+        area.playerCount = uint8(0);
+        area.sumOfPlayerLevels = uint16(0);
+        area.monsterCount = uint8(0);
+        area.sumOfMonsterLevels = uint16(0);
+        area.playerBitMap = uint64(0);
+        area.monsterBitMap = uint64(0);
+        if (area.lastLogBlock == uint64(0)) area.lastLogBlock = uint64(1);
+        area.update = true;
+        return area;
+    }
+
+    function _getKiller(bytes32 deceasedID) internal view returns (bytes32 killerID, bool valid) {
+        bytes32 killerID = killMap[deceasedID];
+        if (killerID == _UNKILLED || killerID == _KILL_PROCESSED || !_isValidID(killerID)) {
+            killerID = _NULL_ID;
+            return (killerID, false);
+        }
+        return (killerID, true);
+    }
+
+    function _setKiller(bytes32 deceasedID, bytes32 killerID) internal returns (bool valid) {
+        bytes32 currentStatus = killMap[deceasedID];
+        if (currentStatus == _UNKILLED && _isValidID(killerID)) {
+            killMap[deceasedID] = killerID;
+            valid = true;
+        }
+    }
+
+    function _finalizeKiller(bytes32 deceasedID, bytes32 killerID) internal returns (bool valid) {
+        bytes32 currentStatus = killMap[deceasedID];
+        if (
+            currentStatus == killerID && currentStatus != _UNKILLED && currentStatus != _KILL_PROCESSED
+                && _isValidID(killerID)
+        ) {
+            killMap[deceasedID] = _KILL_PROCESSED;
+            valid = true;
+        }
     }
 
     function _storeBattleNad(BattleNad memory character) internal {
         if (!_isValidID(character.id)) return;
+        if (character.stats.combatantBitMap == uint64(0)) {
+            character = _exitCombat(character);
+        }
         if (character.tracker.updateStats) {
             character = _removeClassStatAdjustments(character);
             _storeBattleNadStats(character.stats, character.id);
         }
         if (character.tracker.updateInventory) {
             inventories[character.id] = character.inventory;
-        }
-        if (character.tracker.updateActiveTask) {
-            characterTasks[character.id] = character.activeTask;
         }
         if (character.tracker.updateOwner) {
             owners[character.id] = character.owner;
@@ -150,96 +228,10 @@ abstract contract Storage {
     }
 
     function _loadBattleNadStats(bytes32 characterID) internal view returns (BattleNadStats memory stats) {
-        /*
-        uint256 packedStats = characterStats[characterID];
-        {
-            // Combat Properties
-            stats.combatantBitMap = uint64(packedStats); // uint64
-            stats.nextTargetIndex = uint8(packedStats >> 64); //uint8
-            stats.combatants = uint8(packedStats >> 72); // uint8
-            stats.sumOfCombatantLevels = uint8(packedStats >> 80); // uint8
-            stats.health = uint16(packedStats >> 88); // uint16
-        }
-        {
-            // Location and Equipment
-            stats.armorID = uint8(packedStats >> 104); // uint8
-            stats.weaponID = uint8(packedStats >> 112); // uint8
-            stats.index = uint8(packedStats >> 120); // uint8
-            stats.y = uint8(packedStats >> 128); // uint8
-            stats.x = uint8(packedStats >> 136); // uint8
-            stats.depth = uint8(packedStats >> 144); // uint8
-        }
-        {
-            // Attributes
-            stats.luck = uint8(packedStats >> 152); // uint8
-            stats.sturdiness = uint8(packedStats >> 160); // uint8
-            stats.quickness = uint8(packedStats >> 168); // uint8
-            stats.dexterity = uint8(packedStats >> 176); // uint8
-            stats.vitality = uint8(packedStats >> 184); // uint8
-            stats.strength = uint8(packedStats >> 192); // uint8
-        }
-        {
-            // Progress
-            stats.experience = uint16(packedStats >> 200); // uint16
-            stats.unspentAttributePoints = uint8(packedStats >> 216); // uint8
-            stats.level = uint8(packedStats >> 224); // uint8
-            stats.debuffs = uint8(packedStats >> 232); // uint8
-            stats.buffs = uint8(packedStats >> 240); // uint8
-            stats.class = CharacterClass(uint8(packedStats >> 248)); // uint8
-        }
-        return stats;
-        */
         stats = characterStats[characterID];
     }
 
     function _storeBattleNadStats(BattleNadStats memory stats, bytes32 characterID) internal {
-        /*
-        uint256 packedStats;
-        {
-            // Combat Properties
-            packedStats |= (
-                uint256(stats.combatantBitMap) // uint64
-                    | uint256(stats.nextTargetIndex) << 64 //uint8
-                    | uint256(stats.combatants) << 72 // uint8
-                    | uint256(stats.sumOfCombatantLevels) << 80 // uint8
-                    | uint256(stats.health) << 88
-            ); // uint16
-        }
-        {
-            // Location and Equipment
-            packedStats |= (
-                uint256(stats.armorID) << 104 // uint8
-                    | uint256(stats.weaponID) << 112 // uint8
-                    | uint256(stats.index) << 120 // uint8
-                    | uint256(stats.y) << 128 // uint8
-                    | uint256(stats.x) << 136 // uint8
-                    | uint256(stats.depth) << 144
-            ); // uint8
-        }
-        {
-            // Attributes
-            packedStats |= (
-                uint256(stats.luck) << 152 // uint8
-                    | uint256(stats.sturdiness) << 160 // uint8
-                    | uint256(stats.quickness) << 168 // uint8
-                    | uint256(stats.dexterity) << 176 // uint8
-                    | uint256(stats.vitality) << 184 // uint8
-                    | uint256(stats.strength) << 192
-            ); // uint8
-        }
-        {
-            // Progress
-            packedStats |= (
-                uint256(stats.experience) << 200 // uint16
-                    | uint256(stats.unspentAttributePoints) << 216 // uint8
-                    | uint256(stats.level) << 224 // uint8
-                    | uint256(stats.debuffs) << 232 // uint8
-                    | uint256(stats.buffs) << 240 // uint8
-                    | uint256(uint8(stats.class)) << 248
-            ); // uint8
-        }
-        characterStats[characterID] = packedStats;
-        */
         characterStats[characterID] = stats;
     }
 
@@ -288,6 +280,17 @@ abstract contract Storage {
         // return target != bytes32(0) && target != _NULL_ID;
         return uint256(target) > 1;
     }
+
+    function _isDeadUnaware(bytes32 deceasedID) internal view returns (bool) {
+        return killMap[deceasedID] == _UNKILLED;
+    }
+
+    function _isDeadUnprocessed(bytes32 deceasedID) internal view returns (bool) {
+        bytes32 currentStatus = killMap[deceasedID];
+        return currentStatus != _UNKILLED && currentStatus != _KILL_PROCESSED && _isValidID(currentStatus);
+    }
+
+    function _exitCombat(BattleNad memory combatant) internal pure virtual returns (BattleNad memory);
 
     function _removeClassStatAdjustments(BattleNad memory combatant) internal pure virtual returns (BattleNad memory);
 

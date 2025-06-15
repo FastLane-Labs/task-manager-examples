@@ -15,7 +15,7 @@ import {
     PayoutTracker
 } from "./Types.sol";
 
-import { GasRelayBase } from "lib/fastlane-contracts/src/common/relay/GasRelayBase.sol";
+import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/GasRelayWithScheduling.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
@@ -23,19 +23,19 @@ import { StatSheet } from "./libraries/StatSheet.sol";
 import { Instances } from "./Instances.sol";
 
 // These are the entrypoint functions called by the tasks
-abstract contract Balances is GasRelayBase, Instances {
+abstract contract Balances is GasRelayWithScheduling, Instances {
     using StatSheet for BattleNad;
 
     constructor(
         address taskManager,
         address shMonad
     )
-        GasRelayBase(
-            taskManager,
-            shMonad,
+        GasRelayWithScheduling(
             MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS + BASE_TX_GAS_COST + MIN_REMAINDER_GAS_BUFFER,
-            32,
-            2
+            8,
+            3,
+            50_000,
+            50_000
         )
     { }
 

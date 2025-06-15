@@ -88,6 +88,8 @@ abstract contract MonsterFactory is CharacterFactory {
         // Update the owner
         monster.owner = player.owner;
         owners[monster.id] = player.owner;
+        characterTasks[monster.id] = _NULL_ID;
+        killMap[monster.id] = _UNKILLED;
 
         emit Events.MonsterCreated(monster.id);
 

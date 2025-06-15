@@ -32,7 +32,7 @@ contract GetBattleNadLiteScript is Script {
         console.log("Fetching BattleNadLite data for owner:", ownerAddress);
 
         // Instantiate the Getters contract interface
-        Getters getters = Getters(gettersAddress);
+        Getters getters = Getters(payable(gettersAddress));
 
         // First get the character ID for this owner
         vm.startBroadcast();
@@ -62,7 +62,7 @@ contract GetBattleNadLiteScript is Script {
         console.log("Fetching BattleNadLite data for character ID:", vm.toString(characterID));
 
         // Instantiate the Getters contract interface
-        Getters getters = Getters(gettersAddress);
+        Getters getters = Getters(payable(gettersAddress));
 
         // Get the BattleNadLite data directly
         vm.startBroadcast();

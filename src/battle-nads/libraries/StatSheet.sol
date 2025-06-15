@@ -18,7 +18,7 @@ library StatSheet {
     uint256 public constant STARTING_STAT_SUM = 32;
 
     function isInCombat(BattleNad memory self) internal pure returns (bool inCombat) {
-        inCombat = self.stats.combatants > 0;
+        inCombat = uint256(self.stats.combatantBitMap) != 0;
     }
 
     function isMonster(BattleNad memory self) internal pure returns (bool monstrous) {

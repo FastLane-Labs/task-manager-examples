@@ -25,7 +25,7 @@ import {
     SessionKey,
     SessionKeyData,
     GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 import { BattleNadsEntrypoint } from "src/battle-nads/Entrypoint.sol";
 import { StatSheet } from "src/battle-nads/libraries/StatSheet.sol";
 

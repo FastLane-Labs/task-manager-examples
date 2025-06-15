@@ -5,15 +5,26 @@ import { SafeTransferLib } from "@solady/utils/SafeTransferLib.sol";
 import { IShMonad } from "@fastlane-contracts/shmonad/interfaces/IShMonad.sol";
 import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
 import { IBattleNadsImplementation } from "./interfaces/IBattleNadsImplementation.sol";
+import { IGeneralReschedulingTask } from "lib/fastlane-contracts/src/common/relay/tasks/IGeneralReschedulingTask.sol";
 
-import { BattleNad, BattleNadStats, BattleArea, Inventory, Weapon, Armor, StorageTracker } from "./Types.sol";
+import {
+    BattleNad,
+    BattleNadStats,
+    BattleArea,
+    Inventory,
+    Weapon,
+    Armor,
+    StorageTracker,
+    Ability,
+    AbilityTracker
+} from "./Types.sol";
 import { Handler } from "./Handler.sol";
 import { Names } from "./libraries/Names.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 
-import { BattleNadsImplementation } from "./tasks/BattleNadsImplementation.sol";
+import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 // These are the entrypoint functions called by the tasks
 contract TaskHandler is Handler {
@@ -23,20 +34,22 @@ contract TaskHandler is Handler {
     address public immutable TASK_IMPLEMENTATION;
 
     constructor(address taskManager, address shMonad) Handler(taskManager, shMonad) {
-        // Build task implementation
-        BattleNadsImplementation taskImplementation = new BattleNadsImplementation();
-        TASK_IMPLEMENTATION = address(taskImplementation);
+        TASK_IMPLEMENTATION = GENERAL_TASK_IMPL;
     }
 
     // Called by a task
     function processTurn(bytes32 characterID)
         external
+        GasAbstracted
         returns (bool reschedule, uint256 nextBlock, uint256 maxPayment)
     {
         // Load character
-        BattleNad memory attacker = _loadBattleNad(characterID, true);
-        attacker.activeTask = _loadActiveTask(characterID);
-        _validateCalledByTask(attacker.activeTask);
+        BattleNad memory attacker = _loadBattleNadInTask(characterID);
+
+        // Only one combat task at a time
+        if (msg.sender != _loadActiveTaskAddress(characterID)) {
+            revert Errors.InvalidCaller(msg.sender);
+        }
 
         // Handle turn
         uint256 targetBlock;
@@ -44,19 +57,12 @@ contract TaskHandler is Handler {
 
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
-            // Calculate the maximum payment
-            if (!_isValidAddress(attacker.owner)) {
-                attacker.owner = _loadOwner(characterID);
-            }
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(msg.sender, attacker.owner, targetBlock);
-
-            // Force kill the character if they can't maintain their task.
-            if (!reschedule || nextBlock == 0) {
-                _forceKill(attacker);
-                return (false, 0, 0);
+            (attacker, reschedule) = _createOrRescheduleCombatTask(attacker, targetBlock);
+            if (!reschedule) {
+                _clearActiveTask(characterID);
             }
         } else {
-            attacker = _setActiveTask(attacker, _EMPTY_ADDRESS);
+            _clearActiveTask(characterID);
         }
 
         // Store the data
@@ -69,12 +75,11 @@ contract TaskHandler is Handler {
     // Called by a task
     function processSpawn(bytes32 characterID)
         external
+        GasAbstracted
         returns (bool reschedule, uint256 nextBlock, uint256 maxPayment)
     {
         // Load character
-        BattleNad memory attacker = _loadBattleNad(characterID, false);
-        attacker.activeTask = _loadActiveTask(characterID);
-        _validateCalledByTask(attacker.activeTask);
+        BattleNad memory attacker = _loadBattleNadInTask(characterID);
 
         // Handle spawn
         uint256 targetBlock;
@@ -83,42 +88,24 @@ contract TaskHandler is Handler {
         // Reschedule if necessary
         if (reschedule) {
             // Calculate the maximum payment and estimate
-            if (!_isValidAddress(attacker.owner)) {
-                attacker.owner = _loadOwner(characterID);
-            }
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(msg.sender, attacker.owner, targetBlock);
+            (attacker, reschedule) = _createOrRescheduleSpawnTask(attacker, targetBlock);
 
             // Force kill the character if they can't maintain their task.
-            if (!reschedule || nextBlock == 0) {
+            if (!reschedule) {
                 _forceKill(attacker);
                 return (false, 0, 0);
             }
         } else {
-            // If successful, store the data
-            attacker = _setActiveTask(attacker, _EMPTY_ADDRESS);
+            _clearActiveTask(characterID);
         }
 
         _storeBattleNad(attacker);
         return (reschedule, nextBlock, maxPayment);
     }
 
-    function processAscend(bytes32 characterID) external {
-        address approvedTask = characterTasks[characterID];
-        require(msg.sender == approvedTask, "ERR - UNAPPROVED CALLER");
-
-        BattleNad memory player = _loadBattleNad(characterID);
-
-        // Verify that the nad is still alive and not in combat
-        if (player.isDead()) {
-            player = _processAttackerDeath(player);
-            player = _setActiveTask(player, _EMPTY_ADDRESS);
-            _storeBattleNad(player);
-            return;
-        } else if (player.isInCombat()) {
-            player = _setActiveTask(player, _EMPTY_ADDRESS);
-            _storeBattleNad(player);
-            return;
-        }
+    function processAscend(bytes32 characterID) external GasAbstracted {
+        // Load character
+        BattleNad memory player = _loadBattleNadInTask(characterID);
 
         uint8 depth = player.stats.depth;
         uint8 x = player.stats.x;
@@ -126,6 +113,19 @@ contract TaskHandler is Handler {
 
         address owner = owners[characterID];
         BattleArea memory area = _loadArea(depth, x, y);
+
+        // Verify that the nad is still alive and not in combat
+        if (player.isDead()) {
+            (player, area) = _processDeathDuringDeceasedTurn(player, area);
+            _storeArea(area, depth, x, y);
+            _clearActiveTask(characterID);
+            _storeBattleNad(player);
+            return;
+        } else if (player.isInCombat()) {
+            _clearActiveTask(characterID);
+            _storeBattleNad(player);
+            return;
+        }
 
         uint256 cashedOutShMONShares = _forceKill(player);
 
@@ -141,307 +141,290 @@ contract TaskHandler is Handler {
     // Called by a task
     function processAbility(bytes32 characterID)
         external
+        GasAbstracted
         returns (bool reschedule, uint256 nextBlock, uint256 maxPayment)
     {
         // Load character
-        BattleNad memory attacker = _loadBattleNad(characterID, true);
-        attacker.activeAbility = _loadAbility(characterID);
-        _validateCalledByTask(attacker.activeAbility.taskAddress);
+        BattleNad memory attacker = _loadBattleNadInTask(characterID);
 
-        // Handle spawn
+        // Handle ability
         uint256 targetBlock;
         (attacker, reschedule, targetBlock) = _handleAbility(attacker);
 
         // Reschedule if necessary
         if (reschedule) {
-            // Calculate the maximum payment
-            if (!_isValidAddress(attacker.owner)) {
-                attacker.owner = _loadOwner(characterID);
-            }
-            (reschedule, nextBlock, maxPayment) = _rescheduleTaskAccounting(msg.sender, attacker.owner, targetBlock);
-
-            // Force kill the character if they can't maintain their task.
-            if (!reschedule || nextBlock == 0) {
-                _forceKill(attacker);
-                return (false, 0, 0);
-            }
+            (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, targetBlock);
         }
 
         // If successful, store the data
         _storeBattleNad(attacker);
-        return (reschedule, nextBlock, maxPayment);
+        return (reschedule, targetBlock, maxPayment);
     }
 
-    function _createCombatTask(
-        BattleNad memory combatant,
-        uint256 targetBlock
-    )
-        internal
-        override
-        returns (BattleNad memory, bool success)
-    {
-        if (!_isValidAddress(combatant.owner)) {
-            revert Errors.CharacterNotOwned(combatant.id);
-        }
-
-        // Get max task payment
-        uint256 maxPayment = _amountBondedToThis(combatant.owner) / 2;
-
-        // Calculate the maximum payment
-        bytes memory data = abi.encodeCall(IBattleNadsImplementation.execute, (combatant.id));
-
-        // Create the task
-        bytes32 taskID;
-        (success, taskID, targetBlock,) = _createTaskCustom(
-            combatant.owner,
-            maxPayment,
-            MIN_REMAINDER_GAS,
-            targetBlock,
-            targetBlock + 65,
-            TASK_IMPLEMENTATION,
-            TASK_GAS,
-            data
-        );
-
-        if (success) {
-            // Get the task address, flag for storage in the future
-            address taskAddress = address(uint160(uint256(taskID)));
-            combatant = _setActiveTask(combatant, taskAddress);
-
-            // Xfer 1 to it so that it doesn't need a cold value xfer
-            // during task rescheduling
-            SafeTransferLib.safeTransferETH(taskAddress, 1);
-        }
-
-        // Return combatant
-        return (combatant, success);
-    }
-
-    function _createSpawnTask(
-        BattleNad memory combatant,
-        uint256 targetBlock
-    )
-        internal
-        override
-        returns (BattleNad memory, bool success)
-    {
-        if (!_isValidAddress(combatant.owner)) {
-            revert Errors.CharacterNotOwned(combatant.id);
-        }
-
-        // Get max task payment
-        uint256 maxPayment = _amountBondedToThis(combatant.owner) / 2;
-
-        // Calculate the maximum payment
-        bytes memory data = abi.encodeCall(IBattleNadsImplementation.spawn, (combatant.id));
-
-        // Create the task
-        bytes32 taskID;
-        (success, taskID, targetBlock,) = _createTaskCustom(
-            combatant.owner,
-            maxPayment,
-            MIN_REMAINDER_GAS,
-            targetBlock,
-            targetBlock + 65,
-            TASK_IMPLEMENTATION,
-            TASK_GAS,
-            data
-        );
-
-        if (success) {
-            // Get the task address, flag for storage in the future
-            address taskAddress = address(uint160(uint256(taskID)));
-            combatant = _setActiveTask(combatant, taskAddress);
-        }
-
-        // Return combatant
-        return (combatant, success);
-    }
-
-    function _createAbilityTask(
-        BattleNad memory combatant,
-        uint256 targetBlock
-    )
-        internal
-        override
-        returns (BattleNad memory, bool success)
-    {
-        if (!_isValidAddress(combatant.owner)) {
-            revert Errors.CharacterNotOwned(combatant.id);
-        }
-
-        // Get max task payment
-        uint256 maxPayment = _amountBondedToThis(combatant.owner);
-
-        // Encode data
-        bytes memory data = abi.encodeCall(IBattleNadsImplementation.ability, (combatant.id));
-
-        // Create the task
-        bytes32 taskID;
-        (success, taskID, targetBlock,) = _createTaskCustom(
-            combatant.owner,
-            maxPayment,
-            MIN_REMAINDER_GAS,
-            targetBlock,
-            targetBlock + 65,
-            TASK_IMPLEMENTATION,
-            TASK_GAS,
-            data
-        );
-
-        if (success) {
-            // Get the task address, flag for storage in the future
-            combatant.activeAbility.taskAddress = address(uint160(uint256(taskID)));
-            combatant.activeAbility.targetBlock = uint64(targetBlock);
-            combatant.tracker.updateActiveAbility = true;
-
-            SafeTransferLib.safeTransferETH(combatant.activeAbility.taskAddress, 1);
-        }
-
-        // Return combatant
-        return (combatant, success);
-    }
-
-    function _createAscendTask(BattleNad memory combatant) internal override returns (BattleNad memory) {
-        // Get max task payment
-        uint256 maxPayment = _amountBondedToThis(combatant.owner);
-
-        if (maxPayment == 0) return combatant;
-
-        bytes memory data = abi.encodeCall(IBattleNadsImplementation.ascend, (combatant.id));
-
-        // Create the task
-        (bool success, bytes32 taskID,,) = _createTaskCustom(
-            combatant.owner,
-            maxPayment,
-            MIN_REMAINDER_GAS,
-            block.number + 96,
-            block.number + 192,
-            TASK_IMPLEMENTATION,
-            TASK_GAS,
-            data
-        );
-
-        if (success) {
-            // Get the task address, flag for storage in the future
-            address taskAddress = address(uint160(uint256(taskID)));
-            combatant = _setActiveTask(combatant, taskAddress);
-        } else {
-            revert Errors.TaskNotScheduled();
-        }
-        return combatant;
-    }
-
-    function _validateCalledByTask(address activeTask) internal view {
-        if (activeTask != msg.sender) {
+    function _loadBattleNadInTask(bytes32 characterID) internal view returns (BattleNad memory combatant) {
+        // Load character
+        combatant = _loadBattleNad(characterID, true);
+        combatant.activeTask = msg.sender;
+        combatant.owner = _abstractedMsgSender();
+        if (!_isTask()) {
             revert Errors.InvalidCaller(msg.sender);
         }
     }
 
-    function _createTaskCustom(
-        address payor,
-        uint256 maxPayment, // In shares
-        uint256 minExecutionGasRemaining,
-        uint256 targetBlock,
-        uint256 highestAcceptableBlock,
-        address taskImplementation,
-        uint256 taskGas,
-        bytes memory taskData
-    )
-        internal
-        returns (bool success, bytes32 taskID, uint256 blockNumber, uint256 amountPaid)
-    {
-        // Calculate the payment
-        uint256 amountEstimated;
-
-        if (maxPayment == 0) {
-            return (success, taskID, blockNumber, amountPaid);
-        }
-
-        // Monitor gas carefully while searching for a cheap block.
-        uint256 searchGas = gasleft();
-        // TODO: update task schedule gas cost (150_000 is rough estimate)
-        if (searchGas < minExecutionGasRemaining + 191_000) {
-            return (success, taskID, blockNumber, amountPaid);
-        }
-        searchGas -= (minExecutionGasRemaining + 190_000);
-
-        (amountEstimated, targetBlock) =
-            _getNextAffordableBlock(maxPayment, targetBlock, highestAcceptableBlock, taskGas, searchGas);
-
-        if (targetBlock == 0 || amountEstimated == 0 || amountEstimated > maxPayment) {
-            emit Events.TaskNotScheduled(maxPayment, amountEstimated, targetBlock);
-            return (success, taskID, blockNumber, amountPaid);
-        }
-
-        // Increase amountEstimated by 1 so that we can send 1 MON to the task to heat up its balance
-        // so that it isn't a cold value xfer in the task's thread.
-        ++amountEstimated;
-
-        // Take the estimated amount from the payor and then bond it to task manager
-        // If payor is address(this) then the shares aren't bonded
-        if (payor == address(this)) {
-            _bondSharesToTaskManager(_convertDepositedMonToShMon(--amountEstimated));
-        } else {
-            _takeFromOwnerBondedAmountInUnderlying(payor, amountEstimated);
-            _bondAmountToTaskManager(--amountEstimated);
-        }
-
-        // Reset the gas limits
-        searchGas = gasleft();
-        if (searchGas < 151_000 + minExecutionGasRemaining) {
-            return (success, taskID, blockNumber, amountPaid);
-        }
-        searchGas -= (minExecutionGasRemaining + 150_000);
-
-        // Schedule the task
-        bytes memory returndata;
-        (success, returndata) = TASK_MANAGER.call{ gas: searchGas }(
-            abi.encodeCall(
-                ITaskManager.scheduleWithBond,
-                (taskImplementation, taskGas, uint64(targetBlock), amountEstimated, taskData)
-            )
-        );
-
-        // Validate and decode
-        if (success) {
-            (success, amountPaid, taskID) = abi.decode(returndata, (bool, uint256, bytes32));
-        }
-
-        // Return result
-        return (success, taskID, targetBlock, amountPaid);
-    }
-
-    function _rescheduleTaskAccounting(
-        address task,
-        address payor,
+    function _createOrRescheduleCombatTask(
+        BattleNad memory combatant,
         uint256 targetBlock
     )
         internal
-        returns (bool success, uint256 nextBlock, uint256 amountEstimated)
+        override
+        returns (BattleNad memory, bool)
     {
+        if (!_isValidAddress(combatant.owner)) {
+            revert Errors.CharacterNotOwned(combatant.id);
+        }
+
         // Calculate the maximum payment
-        uint256 maxPayment = _amountBondedToThis(payor);
-        if (maxPayment == 0) {
-            return (false, 0, 0);
+        bytes memory data = abi.encodeCall(this.processTurn, (combatant.id));
+
+        // Create the task
+        (bool success, bytes32 taskID) = _scheduleCallback(data, TASK_GAS, targetBlock, targetBlock + 65, true);
+
+        if (success) {
+            // Get the task address, flag for storage in the future
+            address taskAddress = address(uint160(uint256(taskID)));
+            if (taskAddress != address(0)) {
+                _storeActiveTask(combatant.id, taskID);
+            }
+        } else {
+            _clearActiveTask(combatant.id);
         }
 
-        uint256 gasToUse = gasleft() / 2;
-        if (gasToUse > 100_000) gasToUse = 100_000;
+        // Return combatant
+        return (combatant, success);
+    }
 
-        (amountEstimated, nextBlock) =
-            _getNextAffordableBlock(maxPayment, targetBlock, targetBlock + 65, TASK_GAS, gasToUse);
-        if (nextBlock == 0 || amountEstimated > maxPayment) {
-            return (false, 0, 0);
+    function _createOrRescheduleSpawnTask(
+        BattleNad memory combatant,
+        uint256 targetBlock
+    )
+        internal
+        override
+        returns (BattleNad memory, bool)
+    {
+        if (!_isValidAddress(combatant.owner)) {
+            revert Errors.CharacterNotOwned(combatant.id);
         }
 
-        // Handle payment
-        // _takeFromOwnerBondedAmountInUnderlying(payor, amountEstimated);
-        // _bondAmountToTaskManager(amountEstimated);
+        // Calculate the maximum payment
+        bytes memory data = abi.encodeCall(this.processSpawn, (combatant.id));
 
-        // Send rescheduling cost to the task as MON
-        IShMonad(SHMONAD).agentWithdrawFromBonded(POLICY_ID, payor, task, amountEstimated, 0, true);
+        // Create the task
+        (bool success, bytes32 taskID) = _scheduleCallback(data, TASK_GAS, targetBlock, targetBlock + 65, true);
 
-        return (true, nextBlock, amountEstimated);
+        // Return combatant
+        return (combatant, success);
+    }
+
+    function _createOrRescheduleAbilityTask(
+        BattleNad memory combatant,
+        uint256 targetBlock
+    )
+        internal
+        override
+        returns (BattleNad memory, bool)
+    {
+        if (!_isValidAddress(combatant.owner)) {
+            revert Errors.CharacterNotOwned(combatant.id);
+        }
+
+        // Encode data
+        bytes memory data = abi.encodeCall(this.processAbility, (combatant.id));
+
+        // Create the task
+        (bool success, bytes32 taskID) = _scheduleCallback(data, TASK_GAS, targetBlock, targetBlock + 65, true);
+
+        if (success) {
+            // Get the task address, flag for storage in the future
+            address taskAddress = address(uint160(uint256(taskID)));
+            if (taskAddress != address(0)) {
+                combatant.activeAbility.taskAddress = taskAddress;
+            }
+            combatant.activeAbility.targetBlock = uint64(targetBlock);
+            combatant.tracker.updateActiveAbility = true;
+        } else {
+            combatant.activeAbility.taskAddress = _EMPTY_ADDRESS;
+            combatant.activeAbility.targetBlock = uint64(0);
+            combatant.activeAbility.stage = 0;
+            combatant.activeAbility.ability = Ability.None;
+            combatant.tracker.updateActiveAbility = true;
+        }
+
+        // Return combatant
+        return (combatant, success);
+    }
+
+    function _createOrRescheduleAscendTask(BattleNad memory combatant) internal override returns (BattleNad memory) {
+        bytes memory data = abi.encodeCall(this.processAscend, (combatant.id));
+
+        // Create the task
+        (bool success, bytes32 taskID) = _scheduleCallback(data, TASK_GAS, block.number + 96, block.number + 192, true);
+        if (success) {
+            // Get the task address, flag for storage in the future
+            address taskAddress = address(uint160(uint256(taskID)));
+            // Rescheduling currently doesnt return a new taskID bc it hasnt been generated yet
+            if (taskAddress != address(0)) {
+                _storeActiveTask(combatant.id, taskID);
+            }
+        } else {
+            _clearActiveTask(combatant.id);
+        }
+        return combatant;
+    }
+
+    function _restartCombatTask(BattleNad memory combatant) internal override returns (BattleNad memory, bool) {
+        combatant.owner = _loadOwner(combatant.id);
+        if (combatant.owner != _abstractedMsgSender()) {
+            revert Errors.InvalidCaller(msg.sender);
+        }
+        bytes memory data = abi.encodeCall(this.processTurn, (combatant.id));
+
+        // Create the task
+        (bool success, bytes32 taskID) = _scheduleCallback(data, TASK_GAS, block.number + 1, block.number + 65, true);
+
+        if (success) {
+            // Get the task address, flag for storage in the future
+            address taskAddress = address(uint160(uint256(taskID)));
+            if (taskAddress != address(0)) {
+                _storeActiveTask(combatant.id, taskID);
+                return (combatant, true);
+            }
+        }
+        return (combatant, false);
+    }
+
+    function _checkClearTasks(BattleNad memory combatant)
+        internal
+        override
+        returns (bool hasActiveCombatTask, address activeTask)
+    {
+        bytes32 taskID = _loadActiveTaskID(combatant.id);
+        activeTask = address(uint160(uint256(taskID)));
+
+        if (!_isValidAddress(combatant.owner)) {
+            combatant.owner = _loadOwner(combatant.id);
+        }
+
+        if (_isValidAddress(activeTask)) {
+            if (ITaskManager(TASK_MANAGER).isTaskExecuted(taskID)) {
+                _clearActiveTask(combatant.id);
+                activeTask = _EMPTY_ADDRESS;
+            } else {
+                SessionKey memory key = _loadSessionKey(activeTask);
+                if (key.owner != combatant.owner || key.expiration <= block.number) {
+                    _clearActiveTask(combatant.id);
+                    activeTask = _EMPTY_ADDRESS;
+                } else {
+                    hasActiveCombatTask = true;
+                }
+            }
+        }
+
+        if (!combatant.isMonster()) {
+            AbilityTracker memory activeAbility = _loadAbility(combatant.id);
+            if (_isValidAddress(activeAbility.taskAddress)) {
+                SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
+                if (key.owner != combatant.owner || key.expiration <= block.number) {
+                    _clearAbility(combatant.id);
+                }
+            }
+        }
+    }
+
+    function areaCleanUp(uint8 depth, uint8 x, uint8 y) public {
+        uint256 minGasRemaining = gasleft() > 800_000 ? 600_000 : 200_000;
+
+        BattleArea memory area = _loadArea(depth, x, y);
+        uint256 combinedBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
+        uint256 removalBitmap;
+
+        // Can't have an index of 0, start i at 1.
+        uint256 targetIndex = 1;
+
+        while (gasleft() > minGasRemaining && combinedBitmap != 0 && targetIndex++ < 64) {
+            uint256 indexBit = 1 << targetIndex;
+
+            // If in combat, check if opponent exists
+            if (combinedBitmap & indexBit != 0) {
+                BattleNad memory combatant = _loadCombatant(depth, x, y, targetIndex);
+
+                // CASE: combatant didnt load
+                if (!_isValidID(combatant.id)) {
+                    // This indicates a big issue / error with tracking - something is not
+                    // being handled correctly asynchronously
+                    combinedBitmap &= ~indexBit;
+                    removalBitmap |= indexBit;
+
+                    area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~indexBit);
+                    area.playerBitMap = uint64(uint256(area.playerBitMap) & ~indexBit);
+                    _clearCombatantArraySlot(depth, x, y, uint8(targetIndex));
+                    area.update = true;
+
+                    // CASE: combatant is dead
+                } else if (combatant.isDead()) {
+                    combinedBitmap &= ~indexBit;
+                    removalBitmap |= indexBit;
+
+                    if (_isDeadUnaware(combatant.id)) {
+                        _setKiller(combatant.id, _SYSTEM_KILLER);
+                        combatant = _exitCombat(combatant);
+
+                        emit Events.PlayerDied(combatant.areaID(), combatant.id);
+                    }
+
+                    if (_isDeadUnprocessed(combatant.id)) {
+                        (combatant, area) = _processDeathDuringDeceasedTurn(combatant, area);
+                    } else {
+                        area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~indexBit);
+                        area.playerBitMap = uint64(uint256(area.playerBitMap) & ~indexBit);
+                        _clearCombatantArraySlot(depth, x, y, uint8(targetIndex));
+                        area.update = true;
+                    }
+                }
+            }
+        }
+
+        minGasRemaining = gasleft() > 650_000 ? 450_000 : 50_000;
+
+        if (combinedBitmap != 0 && removalBitmap != 0) {
+            while (gasleft() > minGasRemaining && targetIndex++ < 64) {
+                uint256 indexBit = 1 << targetIndex;
+
+                // If in combat, check if opponent exists
+                if (combinedBitmap & indexBit != 0) {
+                    BattleNad memory combatant = _loadCombatant(depth, x, y, targetIndex);
+                    uint256 combatantBitmap = uint256(combatant.stats.combatantBitMap);
+
+                    if (combatantBitmap == 0) {
+                        continue;
+                    }
+
+                    if (combatantBitmap & (~removalBitmap) != combatantBitmap) {
+                        combatantBitmap &= ~removalBitmap;
+                        combatant.tracker.updateStats = true;
+                    }
+
+                    if (combatantBitmap & combinedBitmap != combatantBitmap) {
+                        combatantBitmap &= combinedBitmap;
+                        combatant.tracker.updateStats = true;
+                    }
+
+                    if (combatantBitmap == 0) {
+                        combatant = _exitCombat(combatant);
+                    }
+                    _storeBattleNad(combatant);
+                }
+            }
+        }
+        _storeArea(area, depth, x, y);
     }
 }

@@ -20,13 +20,13 @@ abstract contract Instances is Combat {
     )
         internal
         view
+        override
         returns (BattleNad memory combatant)
     {
         bytes32 combatantID = areaCombatants[depth][x][y][index];
-        if (!_isValidID(combatantID)) {
-            revert Errors.InvalidTargetIndex(index);
+        if (_isValidID(combatantID)) {
+            combatant = _loadBattleNad(combatantID);
         }
-        combatant = _loadBattleNad(combatantID);
     }
 
     function _checkForAggro(
