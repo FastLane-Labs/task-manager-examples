@@ -231,7 +231,6 @@ abstract contract Combat is MonsterFactory {
                         defender.id = _NULL_ID;
                         // return early bc we probably dont have much gas left
                         return (attacker, defender, area);
-
                     } else if (!_isDeadUnprocessed(defender.id)) {
                         area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~targetBit);
                         area.playerBitMap = uint64(uint256(area.playerBitMap) & ~targetBit);
