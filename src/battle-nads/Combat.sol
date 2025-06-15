@@ -218,6 +218,20 @@ abstract contract Combat is MonsterFactory {
                     if (_isDeadUnaware(defender.id)) {
                         (attacker,, area) = _processDeathDuringKillerTurn(attacker, defender, area);
                         attacker.tracker.updateStats = true;
+                    } else if (killMap[defender.id] == attacker.id) {
+                        // Not my proudest few lines of code but we're all human and this is a side
+                        // project and it's 3am and doing it efficiently would take a long time x.x
+                        combatantBitmap &= ~targetBit;
+                        attacker.stats.combatantBitMap = uint64(combatantBitmap);
+                        _storeBattleNad(attacker);
+                        (defender, area) = _processDeathDuringDeceasedTurn(defender, area);
+                        attacker = _loadBattleNad(attacker.id, true);
+                        attacker.owner = _loadOwner(attacker.id);
+                        attacker.tracker.updateStats = true;
+                        defender.id = _NULL_ID;
+                        // return early bc we probably dont have much gas left
+                        return (attacker, defender, area);
+
                     } else if (!_isDeadUnprocessed(defender.id)) {
                         area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~targetBit);
                         area.playerBitMap = uint64(uint256(area.playerBitMap) & ~targetBit);
