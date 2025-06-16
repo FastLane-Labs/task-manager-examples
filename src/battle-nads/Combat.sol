@@ -373,6 +373,7 @@ abstract contract Combat is MonsterFactory {
         internal
         returns (BattleNad memory, BattleNad memory newDefender, BattleArea memory)
     {
+        require(defender.isDead(), "ERR-DefenderAliveCantProcess");
         (attacker, defender) = _disengageFromCombat(attacker, defender);
 
         _setKiller(defender.id, attacker.id);

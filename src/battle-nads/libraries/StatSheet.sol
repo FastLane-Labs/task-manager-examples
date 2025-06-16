@@ -39,10 +39,6 @@ library StatSheet {
         dead = self.stats.health < 2;
     }
 
-    function isDead(BattleNadLite memory self) internal pure returns (bool dead) {
-        dead = self.stats.health < 2;
-    }
-
     function isStunned(BattleNad memory self) internal pure returns (bool stunned) {
         stunned = self.stats.debuffs & (1 << uint256(uint8(StatusEffect.Stunned))) != 0;
     }
