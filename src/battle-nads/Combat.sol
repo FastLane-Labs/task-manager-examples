@@ -285,6 +285,10 @@ abstract contract Combat is MonsterFactory {
             combatant.tracker.updateStats = true;
         }
 
+        if (combatant.isDead()) {
+            return (combatant, log);
+        }
+
         // Apply class adjustments if not already done
         if (combatant.maxHealth == 0) {
             combatant = _addClassStatAdjustments(combatant);
@@ -408,7 +412,7 @@ abstract contract Combat is MonsterFactory {
                 victor.stats.combatantBitMap = uint64(1 << deceased.stats.index);
                 victor.stats.combatants = 1;
                 victor.stats.sumOfCombatantLevels = deceased.stats.level;
-                victor.maxHealth = 1;
+                victor.maxHealth = 3;
             } else {
                 victor = _loadBattleNad(killerID, false);
             }

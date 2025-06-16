@@ -31,8 +31,16 @@ library StatSheet {
             || self.class == CharacterClass.Boss;
     }
 
+    function isDead(BattleNadStats memory self) internal pure returns (bool dead) {
+        dead = self.health < 2;
+    }
+
     function isDead(BattleNad memory self) internal pure returns (bool dead) {
-        dead = self.stats.health == 0;
+        dead = self.stats.health < 2;
+    }
+
+    function isDead(BattleNadLite memory self) internal pure returns (bool dead) {
+        dead = self.stats.health < 2;
     }
 
     function isStunned(BattleNad memory self) internal pure returns (bool stunned) {

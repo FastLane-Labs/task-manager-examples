@@ -34,6 +34,7 @@ contract Getters is TaskHandler {
     using Equipment for Inventory;
     using StatSheet for BattleNad;
     using StatSheet for BattleNadLite;
+    using StatSheet for BattleNadStats;
     using Names for BattleNad;
     using Names for BattleNadLite;
 
@@ -124,7 +125,7 @@ contract Getters is TaskHandler {
     function getBattleNad(bytes32 characterID) public view returns (BattleNad memory character) {
         character = _loadBattleNad(characterID);
         character.activeTask = _loadActiveTaskAddress(characterID);
-        if (character.stats.health == 0) {
+        if (character.isDead()) {
             character.tracker.died = true;
         }
         character = _addClassStatAdjustments(character);
@@ -150,7 +151,7 @@ contract Getters is TaskHandler {
         BattleNadStats memory stats = _loadBattleNadStats(characterID);
         character.id = characterID;
         character.class = stats.class;
-        if (stats.health == 0) {
+        if (stats.isDead()) {
             character.isDead = true;
         }
         stats = _handleAddClassStats(stats);

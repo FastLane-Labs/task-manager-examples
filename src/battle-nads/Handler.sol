@@ -593,6 +593,12 @@ abstract contract Handler is Balances {
 
         // Store defender
         if (loadedDefender) {
+            if (defender.isDead()) {
+                // NOTE: Monsters cant use abilities, so attacker cant be a monster, so a null area
+                // can be used since no new target is needed.
+                BattleArea memory nullArea;
+                (attacker, defender, nullArea) = _processDeathDuringKillerTurn(attacker, defender, nullArea);
+            }
             _storeBattleNad(defender);
         }
 

@@ -23,6 +23,7 @@ import { Equipment } from "./libraries/Equipment.sol";
 
 abstract contract Storage {
     using StatSheet for BattleNad;
+    using StatSheet for BattleNadStats;
     using Names for BattleNad;
     using Names for BattleNadLite;
     using Equipment for BattleNadLite;
@@ -123,6 +124,9 @@ abstract contract Storage {
         if (adjustStats) {
             character = _addClassStatAdjustments(character);
         }
+        if (character.isDead()) {
+            character.tracker.died = true;
+        }
         return character;
     }
 
@@ -130,6 +134,9 @@ abstract contract Storage {
         BattleNad memory character = _loadBattleNad(characterID, false);
         // character.activeTask = characterTasks[characterID];
         character.owner = owners[characterID];
+        if (character.isDead()) {
+            character.tracker.died = true;
+        }
         return character;
     }
 
@@ -209,6 +216,9 @@ abstract contract Storage {
 
     function _storeBattleNad(BattleNad memory character) internal {
         if (!_isValidID(character.id)) return;
+        if (character.tracker.died) {
+            character.stats.health = 0;
+        }
         if (character.stats.combatantBitMap == uint64(0)) {
             character = _exitCombat(character);
         }
@@ -232,6 +242,9 @@ abstract contract Storage {
     }
 
     function _storeBattleNadStats(BattleNadStats memory stats, bytes32 characterID) internal {
+        if (stats.isDead()) {
+            stats.health = 0;
+        }
         characterStats[characterID] = stats;
     }
 
