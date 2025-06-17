@@ -6,7 +6,6 @@ import { BattleNad, BattleNadStats, BattleArea, StorageTracker, Inventory } from
 import { Combat } from "./Combat.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Equipment } from "./libraries/Equipment.sol";
-import { Events } from "./libraries/Events.sol";
 
 abstract contract Instances is Combat {
     using Equipment for BattleNad;
@@ -103,7 +102,7 @@ abstract contract Instances is Combat {
         return combinedBitmap & (1 << index) != 0;
     }
 
-    function _findNextIndex(BattleArea memory area, bytes32 randomSeed) internal view returns (uint8 newIndex) {
+    function _findNextIndex(BattleArea memory area, bytes32 randomSeed) internal pure returns (uint8 newIndex) {
         uint256 index = (uint256(0xff) & uint256(uint8(uint256(randomSeed >> 24)))) / 4;
         uint256 combinedBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
         uint256 indexBit;
