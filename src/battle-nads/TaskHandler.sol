@@ -2,22 +2,9 @@
 pragma solidity 0.8.28;
 
 import { SafeTransferLib } from "@solady/utils/SafeTransferLib.sol";
-import { IShMonad } from "@fastlane-contracts/shmonad/interfaces/IShMonad.sol";
 import { ITaskManager } from "@fastlane-contracts/task-manager/interfaces/ITaskManager.sol";
-import { IBattleNadsImplementation } from "./interfaces/IBattleNadsImplementation.sol";
-import { IGeneralReschedulingTask } from "lib/fastlane-contracts/src/common/relay/tasks/IGeneralReschedulingTask.sol";
 
-import {
-    BattleNad,
-    BattleNadStats,
-    BattleArea,
-    Inventory,
-    Weapon,
-    Armor,
-    StorageTracker,
-    Ability,
-    AbilityTracker
-} from "./Types.sol";
+import { BattleNad, BattleArea, Ability, AbilityTracker } from "./Types.sol";
 import { Handler } from "./Handler.sol";
 import { Names } from "./libraries/Names.sol";
 import { Errors } from "./libraries/Errors.sol";

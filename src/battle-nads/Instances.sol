@@ -6,7 +6,6 @@ import { BattleNad, BattleNadStats, BattleArea, StorageTracker, Inventory } from
 import { Combat } from "./Combat.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Equipment } from "./libraries/Equipment.sol";
-import { Events } from "./libraries/Events.sol";
 
 abstract contract Instances is Combat {
     using Equipment for BattleNad;
