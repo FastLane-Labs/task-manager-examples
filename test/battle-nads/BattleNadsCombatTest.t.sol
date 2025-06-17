@@ -344,7 +344,7 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         //inCombatChar.stats.combatantBitMap = 2;
         
         Log memory combatLog;
-        (BattleNad memory combatRegenChar, Log memory combatRegenLog) = battleNads.testRegenerateHealth(inCombatChar, combatLog);
+        (BattleNad memory combatRegenChar,) = battleNads.testRegenerateHealth(inCombatChar, combatLog);
         
         assertTrue(combatRegenChar.stats.health > 80, "Should regenerate some health in combat");
         assertTrue(combatRegenChar.stats.health <= 100, "Should not exceed max health");
