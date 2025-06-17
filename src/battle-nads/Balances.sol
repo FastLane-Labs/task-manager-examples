@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
+
 import { BattleNad, BalanceTracker, Log } from "./Types.sol";
 
 import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/GasRelayWithScheduling.sol";

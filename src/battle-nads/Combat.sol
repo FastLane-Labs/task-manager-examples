@@ -14,7 +14,7 @@ import {
     StatusEffect
 } from "./Types.sol";
 
-import { MonsterFactory } from "./MonsterFactory.sol"; 
+import { MonsterFactory } from "./MonsterFactory.sol";
 import { Equipment } from "./libraries/Equipment.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
