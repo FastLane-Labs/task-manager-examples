@@ -218,7 +218,7 @@ abstract contract Storage {
     }
 
     function _getKiller(bytes32 deceasedID) internal view returns (bytes32 killerID, bool valid) {
-        bytes32 killerID = killMap[deceasedID];
+        killerID = killMap[deceasedID];
         if (killerID == _UNKILLED || killerID == _KILL_PROCESSED || !_isValidID(killerID)) {
             killerID = _NULL_ID;
             return (killerID, false);
