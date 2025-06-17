@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.28;
 
 // Inherit common setup and helpers
 import { BattleNadsBaseTest } from "./helpers/BattleNadsBaseTest.sol";
+import { Constants } from "src/battle-nads/Constants.sol";
 import { console } from "forge-std/console.sol";
 
 // Specific imports if needed
@@ -14,13 +15,13 @@ import { Errors } from "src/battle-nads/libraries/Errors.sol";
  * @notice Tests focusing on Class-Specific Abilities
  * @dev Tests each ability for each class with various scenarios
  */
-contract BattleNadsAbilityTest is BattleNadsBaseTest {
+contract BattleNadsAbilityTest is BattleNadsBaseTest, Constants {
 
-     function setUp() public override {
+    function setUp() public override {
         super.setUp();
-        // Create characters with session keys for ability usage
+        // Create a Warrior for ability tests, ensuring the class is not random
         character1 = _createCharacterAndSpawn(1, "AbilityUser", 6, 6, 5, 5, 5, 5, userSessionKey1, uint64(type(uint64).max));
-        character2 = _createCharacterAndSpawn(2, "AbilityTarget", 5, 7, 5, 5, 5, 5, userSessionKey2, uint64(type(uint64).max));
+        _modifyCharacterStat(character1, "class", uint256(uint8(CharacterClass.Warrior)));
     }
 
     // =============================================================================
@@ -395,14 +396,14 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
         BattleNad memory beforeCombat = battleNads.getBattleNad(character);
         assertEq(beforeCombat.stats.combatants, 0, "Should not be in combat initially");
         
-        // Try to use non-offensive ability outside combat
+        // Use ChargeUp (ability 2 for Warrior), which is non-offensive
         vm.prank(userSessionKey1);
-        battleNads.useAbility(character, 0, 1); // Non-targeted ability
+        battleNads.useAbility(character, 0, 2); 
         
         // Should be able to schedule non-offensive abilities outside combat
         BattleNad memory afterAbility = battleNads.getBattleNad(character);
-        // Note: Some abilities might be combat-only, this tests the general case
-        assertTrue(true, "Non-offensive ability usage outside combat completed");
+        assertTrue(afterAbility.activeAbility.taskAddress != address(0), "Ability task should be scheduled");
+        assertTrue(afterAbility.activeAbility.taskAddress != address(1), "Ability task should not be address(1)");
     }
 
     /**
