@@ -77,7 +77,6 @@ contract TaskHandler is Handler {
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleCombatTask(attacker, targetBlock);
-
         } else {
             _clearActiveTask(characterID);
         }
@@ -328,7 +327,7 @@ contract TaskHandler is Handler {
     {
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         activeTask = address(uint160(uint256(taskID)));
-        uint64 targetBlock = uint64(uint256(taskID>>160));
+        uint64 targetBlock = uint64(uint256(taskID >> 160));
 
         if (!_isValidAddress(combatant.owner)) {
             combatant.owner = _loadOwner(combatant.id);
