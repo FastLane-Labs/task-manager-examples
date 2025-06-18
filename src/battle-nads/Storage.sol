@@ -28,6 +28,9 @@ abstract contract Storage {
     using Names for BattleNadLite;
     using Equipment for BattleNadLite;
 
+    error Storage_InvalidIndex(uint256 index);
+    error Storage_InvalidBlock(uint256 blockNumber);
+
     // Character ID -> Owner
     mapping(bytes32 => address) public owners;
 
@@ -162,6 +165,35 @@ abstract contract Storage {
 
     function _storeActiveTask(bytes32 characterID, bytes32 taskID) internal {
         characterTasks[characterID] = taskID;
+    }
+
+    function _hackyUpdateTaskID(bytes32 characterID, uint256 scheduledBlock) internal {
+    /*
+        environment = address(uint160(uint256(packedTask)));
+        initBlock = uint64(uint256(packedTask) >> 160);
+        initIndex = uint16(uint256(packedTask) >> 224);
+        size = Size(uint8(uint256(packedTask) >> 240));
+        cancelled = uint8(uint256(packedTask) >> 248) == 1;
+
+        packedTask = bytes32(
+            uint256(uint160(environment)) | (uint256(initBlock) << 160) | (uint256(initIndex) << 224)
+                | (uint256(size) << 240) | (uint256(cancelled ? 1 : 0) << 248)
+        );
+    */
+
+        if (++scheduledBlock > type(uint64).max) revert Storage_InvalidBlock(scheduledBlock);
+
+        bytes32 oldTaskID = _loadActiveTaskID(characterID);
+
+        // Clear old the old block and index
+        oldTaskID &= 0xffff00000000000000000000ffffffffffffffffffffffffffffffffffffffff;
+
+        oldTaskID |= bytes32(scheduledBlock<<160);
+
+        // Assume in-block-index is 1 (false positives are tolerable, false negatives are breaking)
+        oldTaskID |= 0x0000000100000000000000000000000000000000000000000000000000000000;
+
+        characterTasks[characterID] = oldTaskID;
     }
 
     function _clearAbility(bytes32 characterID) internal {

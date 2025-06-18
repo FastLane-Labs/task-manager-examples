@@ -26,6 +26,25 @@ import { StatSheet } from "./libraries/StatSheet.sol";
 
 import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
+interface ICustomTaskManager {
+    /// @notice Load balancing configuration for task scheduling
+    /// @dev Manages task distribution across blocks
+    struct LoadBalancer {
+        /// @notice Current active block for small tasks
+        uint64 activeBlockSmall;
+        /// @notice Current active block for medium tasks
+        uint64 activeBlockMedium;
+        /// @notice Current active block for large tasks
+        uint64 activeBlockLarge;
+        /// @notice Target delay between task scheduling and execution
+        uint32 targetDelay;
+        /// @notice Rate at which delays should adjust
+        uint32 targetGrowthRate;
+    }
+
+    function S_loadBalancer() external view returns (LoadBalancer memory);
+}
+
 // These are the entrypoint functions called by the tasks
 contract TaskHandler is Handler {
     using StatSheet for BattleNad;
@@ -34,7 +53,7 @@ contract TaskHandler is Handler {
     address public immutable TASK_IMPLEMENTATION;
 
     constructor(address taskManager, address shMonad) Handler(taskManager, shMonad) {
-        TASK_IMPLEMENTATION = GENERAL_TASK_IMPL;
+        TASK_IMPLEMENTATION = GENERAL_TASK_IMPL();
     }
 
     // Called by a task
@@ -58,9 +77,7 @@ contract TaskHandler is Handler {
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleCombatTask(attacker, targetBlock);
-            if (!reschedule) {
-                _clearActiveTask(characterID);
-            }
+
         } else {
             _clearActiveTask(characterID);
         }
@@ -194,6 +211,8 @@ contract TaskHandler is Handler {
             address taskAddress = address(uint160(uint256(taskID)));
             if (taskAddress != address(0)) {
                 _storeActiveTask(combatant.id, taskID);
+            } else {
+                _hackyUpdateTaskID(combatant.id, targetBlock);
             }
         } else {
             _clearActiveTask(combatant.id);
@@ -309,13 +328,15 @@ contract TaskHandler is Handler {
     {
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         activeTask = address(uint160(uint256(taskID)));
+        uint64 targetBlock = uint64(uint256(taskID>>160));
 
         if (!_isValidAddress(combatant.owner)) {
             combatant.owner = _loadOwner(combatant.id);
         }
 
         if (_isValidAddress(activeTask)) {
-            if (ITaskManager(TASK_MANAGER).isTaskExecuted(taskID)) {
+            ICustomTaskManager.LoadBalancer memory _loadBal = ICustomTaskManager(TASK_MANAGER).S_loadBalancer();
+            if (_loadBal.activeBlockMedium > targetBlock) {
                 _clearActiveTask(combatant.id);
                 activeTask = _EMPTY_ADDRESS;
             } else {
