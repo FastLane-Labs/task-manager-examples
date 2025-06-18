@@ -282,15 +282,14 @@ abstract contract Instances is Combat {
         uint256 baseX = 20;
         uint256 baseY = 20;
         do {
-            
             // Generate X and Y
-            if (i%4 == 0) {
+            if (i % 4 == 0) {
                 baseX = baseY;
-            } else if (i%4 == 1) {
+            } else if (i % 4 == 1) {
                 ++baseX;
-            } else if (i%4 == 2) {
+            } else if (i % 4 == 2) {
                 ++baseY;
-            } else if (i%4 == 3) {
+            } else if (i % 4 == 3) {
                 --baseX;
             }
 
