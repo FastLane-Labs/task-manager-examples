@@ -279,8 +279,8 @@ abstract contract Instances is Combat {
         uint256 threshold = STARTING_OCCUPANT_THRESHOLD;
         uint256 maxOccupants = MAX_COMBATANTS_PER_AREA - 1;
         uint256 i;
-        uint256 baseX = 20;
-        uint256 baseY = 20;
+        uint256 baseX = 26;
+        uint256 baseY = 26;
         do {
             // Generate X and Y
             if (i % 4 == 0) {
