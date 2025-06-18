@@ -260,11 +260,11 @@ abstract contract Handler is Balances {
                 defender.owner = attacker.owner;
                 defender.tracker.updateOwner = true;
             }
-            (defender, scheduledTask) = _createOrRescheduleCombatTask(defender, _cooldown(defender.stats));
+            (defender, scheduledTask) = _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
         }
 
         if (scheduledTask && !_isValidAddress(attacker.activeTask)) {
-            (attacker, scheduledTask) = _createOrRescheduleCombatTask(attacker, _cooldown(attacker.stats));
+            (attacker, scheduledTask) = _createOrRescheduleCombatTask(attacker, block.number + _cooldown(attacker.stats));
         }
 
         // This is being called by a non-task function, so revert if we failed to schedule the task
