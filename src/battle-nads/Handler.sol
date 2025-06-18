@@ -64,7 +64,7 @@ abstract contract Handler is Balances {
         returns (BattleNad memory, bool reschedule, uint256 blockNumber)
     {
         // Find spawn point
-        (BattleArea memory area, uint8 x, uint8 y) = _randomSpawnCoordinates(player);
+        (BattleArea memory area, uint8 x, uint8 y) = _unrandomSpawnCoordinates(player);
         uint8 depth = 1;
         if (x == 0 && y == 0) {
             return (player, true, block.number + 8);
