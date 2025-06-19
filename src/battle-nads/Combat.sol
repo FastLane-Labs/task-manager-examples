@@ -263,7 +263,7 @@ abstract contract Combat is MonsterFactory {
                 }
             }
             attacker.stats.nextTargetIndex = uint8(targetIndex);
-        } while (combatantBitmap != 0 && gasleft() > 140_000);
+        } while (combatantBitmap != 0 && gasleft() > 110_000);
 
         if (combatantBitmap == 0) {
             attacker = _exitCombat(attacker);

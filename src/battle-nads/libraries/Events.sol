@@ -26,4 +26,6 @@ library Events {
     event LootedShMON(bytes32 indexed areaID, bytes32 indexed characterID, uint256 shMonAmount);
     event PlayerDied(bytes32 indexed areaID, bytes32 indexed characterID);
     event TaskNotScheduled(uint256 maxPayment, uint256 amountEstimated, uint256 targetBlock);
+    event TaskNotScheduledInHandler(uint256 id, bytes32 characterID, uint256 currentBlock, uint256 targetBlock);
+    event TaskNotScheduledInTaskHandler(uint256 id, bytes32 characterID, uint256 currentBlock, uint256 targetBlock);
 }

@@ -134,6 +134,7 @@ abstract contract Handler is Balances {
 
         // If there's no monster, return early
         if (monsterIndex == 0) {
+            _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
             return player;
         }
 
@@ -154,31 +155,35 @@ abstract contract Handler is Balances {
         (monster, player) = _enterMutualCombatToTheDeath(monster, player);
 
         // Create tasks
-        bool scheduledTask = true; // Set as true to assume there's no monster task
+        bool scheduledTask = false;
 
         // Only create for monster if task doesn't already exist
         if (newMonster) {
             uint256 targetBlock = block.number + _cooldown(monster.stats);
             (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(3, monster.id, block.number, targetBlock);
+            }
         } else {
             // If task is no longer active, start a new one
-            (bool hasActiveCombatTask,) = _checkClearTasks(monster);
-            if (!hasActiveCombatTask) {
+            (scheduledTask,) = _checkClearTasks(monster);
+            if (!scheduledTask) {
                 monster.owner = player.owner;
                 monster.tracker.updateOwner = true;
                 uint256 targetBlock = block.number + _cooldown(monster.stats);
                 (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
+                if (!scheduledTask) {
+                    emit Events.TaskNotScheduledInHandler(4, monster.id, block.number, targetBlock);
+                }
             }
         }
 
         if (scheduledTask) {
             uint256 targetBlock = block.number + _cooldown(player.stats);
             (player, scheduledTask) = _createOrRescheduleCombatTask(player, targetBlock);
-        }
-
-        // This is being called by a non-task function, so revert if we failed to schedule the task
-        if (!scheduledTask) {
-            revert Errors.TaskNotScheduled();
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(5, player.id, block.number, targetBlock);
+            }
         }
 
         // Store area
@@ -229,24 +234,39 @@ abstract contract Handler is Balances {
             revert Errors.CannotAttackDueToLevelCap();
         }
 
+        /*
         // Revert if we're already attacking this target and the defender knows it.
         if (
             attacker.stats.nextTargetIndex == uint8(targetIndex)
                 && defender.stats.combatantBitMap & (1 << uint256(attacker.stats.index)) != 0
         ) {
+            // return _exitCombat(attacker);
             revert Errors.AlreadyInCombat(attacker.stats.index, defender.stats.index);
         }
+        */
+
+        BattleArea memory area = _loadArea(attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
         // Log that we instigated combat
         if (_notYetInCombat(attacker, defender)) {
-            BattleArea memory area = _loadArea(attacker.stats.depth, attacker.stats.x, attacker.stats.y);
             area = _logInstigatedCombat(attacker, defender, area);
-            _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
         }
 
         if (attacker.stats.nextTargetIndex != uint8(targetIndex)) {
             attacker.stats.nextTargetIndex = uint8(targetIndex);
             attacker.tracker.updateStats = true;
+        }
+
+        if (defender.stats.nextTargetIndex == 0) {
+            defender.stats.nextTargetIndex = attacker.stats.index;
+            defender.tracker.updateStats = true;
+        } else if (defender.stats.nextTargetIndex != uint8(attacker.stats.index)) {
+            bytes32 defenderTargetID =
+                areaCombatants[defender.stats.depth][defender.stats.x][defender.stats.y][defender.stats.nextTargetIndex];
+            if (!_isValidID(defenderTargetID)) {
+                defender.stats.nextTargetIndex = attacker.stats.index;
+                defender.tracker.updateStats = true;
+            }
         }
 
         // Flag for combat
@@ -260,17 +280,29 @@ abstract contract Handler is Balances {
                 defender.owner = attacker.owner;
                 defender.tracker.updateOwner = true;
             }
-            (defender, scheduledTask) = _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+            (defender, scheduledTask) =
+                _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(
+                    1, defender.id, block.number, block.number + _cooldown(defender.stats)
+                );
+            }
         }
 
-        if (scheduledTask && !_isValidAddress(attacker.activeTask)) {
-            (attacker, scheduledTask) = _createOrRescheduleCombatTask(attacker, block.number + _cooldown(attacker.stats));
-        }
-
-        // This is being called by a non-task function, so revert if we failed to schedule the task
+        (scheduledTask,) = _checkClearTasks(attacker);
         if (!scheduledTask) {
-            revert Errors.TaskNotScheduled();
+            (attacker, scheduledTask) =
+                _createOrRescheduleCombatTask(attacker, block.number + _cooldown(attacker.stats));
+            // This is being called by a non-task function
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(
+                    2, attacker.id, block.number, block.number + _cooldown(attacker.stats)
+                );
+            }
         }
+
+        // Store area
+        _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
         // Store the defendant's data
         _storeBattleNad(defender);
@@ -421,9 +453,6 @@ abstract contract Handler is Balances {
             // Store the log
             area = _storeLog(attacker, area, log);
 
-            // Store area
-            _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
-
             // CASE: No combatants remain
             if (!attacker.isInCombat()) {
                 reschedule = false;
@@ -435,6 +464,9 @@ abstract contract Handler is Balances {
                 reschedule = true;
                 nextExecutionBlock = block.number + 1;
             }
+
+            // Store area
+            _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
             // Save and return
             return (attacker, reschedule, nextExecutionBlock);

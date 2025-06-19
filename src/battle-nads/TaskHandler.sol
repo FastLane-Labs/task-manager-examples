@@ -77,6 +77,9 @@ contract TaskHandler is Handler {
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleCombatTask(attacker, targetBlock);
+            if (!reschedule) {
+                emit Events.TaskNotScheduledInTaskHandler(20, attacker.id, block.number, targetBlock);
+            }
         } else {
             _clearActiveTask(characterID);
         }
@@ -108,6 +111,7 @@ contract TaskHandler is Handler {
 
             // Force kill the character if they can't maintain their task.
             if (!reschedule) {
+                emit Events.TaskNotScheduledInTaskHandler(21, attacker.id, block.number, targetBlock);
                 _forceKill(attacker);
                 return (false, 0, 0);
             }
@@ -170,6 +174,9 @@ contract TaskHandler is Handler {
         // Reschedule if necessary
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, targetBlock);
+            if (!reschedule) {
+                emit Events.TaskNotScheduledInTaskHandler(22, attacker.id, block.number, targetBlock);
+            }
         }
 
         // If successful, store the data
@@ -340,7 +347,7 @@ contract TaskHandler is Handler {
                 activeTask = _EMPTY_ADDRESS;
             } else {
                 SessionKey memory key = _loadSessionKey(activeTask);
-                if (key.owner != combatant.owner || key.expiration <= block.number) {
+                if (key.expiration <= block.number) {
                     _clearActiveTask(combatant.id);
                     activeTask = _EMPTY_ADDRESS;
                 } else {
@@ -353,7 +360,7 @@ contract TaskHandler is Handler {
             AbilityTracker memory activeAbility = _loadAbility(combatant.id);
             if (_isValidAddress(activeAbility.taskAddress)) {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
-                if (key.owner != combatant.owner || key.expiration <= block.number) {
+                if (key.expiration <= block.number) {
                     _clearAbility(combatant.id);
                 }
             }
