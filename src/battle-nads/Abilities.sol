@@ -292,21 +292,20 @@ abstract contract Abilities is Classes {
                 nextBlock = 0;
             }
         }
-        {
-            // Log the ability occurence
-            _logAbility(attacker, defender, ability, stage, damage, healed, nextBlock);
 
-            // Tag to update ability tracking
-            attacker.tracker.updateActiveAbility = true;
+        // Log the ability occurence
+        _logAbility(attacker, defender, ability, stage, damage, healed, nextBlock);
 
-            // Update tracking
-            attacker.activeAbility.stage = nextStage;
-            attacker.activeAbility.targetBlock = uint64(nextBlock);
-            if (!reschedule) {
-                attacker.activeAbility.taskAddress = _EMPTY_ADDRESS;
-                attacker.activeAbility.ability = Ability.None;
-                attacker.activeAbility.targetIndex = uint8(0);
-            }
+        // Tag to update ability tracking
+        attacker.tracker.updateActiveAbility = true;
+
+        // Update tracking
+        attacker.activeAbility.stage = nextStage;
+        attacker.activeAbility.targetBlock = uint64(nextBlock);
+        if (!reschedule) {
+            attacker.activeAbility.taskAddress = _EMPTY_ADDRESS;
+            attacker.activeAbility.ability = Ability.None;
+            attacker.activeAbility.targetIndex = uint8(0);
         }
 
         if (attacker.isDead() || (defender.isDead() && defender.maxHealth > 0)) {

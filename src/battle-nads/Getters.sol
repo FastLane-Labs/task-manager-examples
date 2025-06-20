@@ -81,10 +81,13 @@ contract Getters is TaskHandler {
         noncombatants = _getNonCombatantBattleNads(characterID);
         (equipableWeaponIDs, equipableWeaponNames,) = _getEquippableWeapons(characterID);
         (equipableArmorIDs, equipableArmorNames,) = _getEquippableArmor(characterID);
-        if (startBlock != 0 && startBlock <= block.number) {
-            dataFeeds = _getDataFeedForRange(character, startBlock, block.number);
+        if (startBlock >= block.number) {
+            startBlock = block.number - 1;
+        } else if (startBlock < block.number - 20) {
+            startBlock = block.number - 20;
         }
-        endBlock = startBlock < block.number ? block.number : startBlock;
+        endBlock = block.number;
+        dataFeeds = _getDataFeedForRange(character, startBlock, endBlock);
     }
 
     function getDataFeed(

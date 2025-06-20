@@ -340,8 +340,8 @@ contract TaskHandler is Handler {
             combatant.owner = _loadOwner(combatant.id);
         }
 
+        ICustomTaskManager.LoadBalancer memory _loadBal = ICustomTaskManager(TASK_MANAGER).S_loadBalancer();
         if (_isValidAddress(activeTask)) {
-            ICustomTaskManager.LoadBalancer memory _loadBal = ICustomTaskManager(TASK_MANAGER).S_loadBalancer();
             if (_loadBal.activeBlockMedium > targetBlock) {
                 _clearActiveTask(combatant.id);
                 activeTask = _EMPTY_ADDRESS;
@@ -361,6 +361,8 @@ contract TaskHandler is Handler {
             if (_isValidAddress(activeAbility.taskAddress)) {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
                 if (key.expiration <= block.number) {
+                    _clearAbility(combatant.id);
+                } else if (_loadBal.activeBlockMedium > activeAbility.targetBlock + 2) {
                     _clearAbility(combatant.id);
                 }
             }

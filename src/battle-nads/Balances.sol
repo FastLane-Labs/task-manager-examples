@@ -33,7 +33,7 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
         GasRelayWithScheduling(
             MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS + BASE_TX_GAS_COST + MIN_REMAINDER_GAS_BUFFER,
             8,
-            3,
+            4,
             50_000,
             50_000
         )

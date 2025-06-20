@@ -450,9 +450,6 @@ abstract contract Handler is Balances {
         if (!_isValidID(defender.id)) {
             (attacker, log) = _regenerateHealth(attacker, log);
 
-            // Store the log
-            area = _storeLog(attacker, area, log);
-
             // CASE: No combatants remain
             if (!attacker.isInCombat()) {
                 reschedule = false;
