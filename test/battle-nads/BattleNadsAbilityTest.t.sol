@@ -311,6 +311,45 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
         assertTrue(true, "Warrior ability tests completed");
     }
 
+    /**
+     * @dev Tests that  Warriors using ShieldBash in combat are able to auto-target
+     */
+    function test_Ability_Warrior_ShieldBash() public {
+        bytes32 character = character1;
+        
+        // Only run this test if we get a Warrior
+        BattleNad memory charData = battleNads.getBattleNad(character);
+        if (charData.stats.class != CharacterClass.Warrior) {
+            console.log("Skipping Warrior test - character is class", uint256(charData.stats.class));
+            return;
+        }
+        
+        console.log("Testing Warrior ShieldBash auto-target fix");
+        
+        // Enter combat
+        bool combatStarted = _triggerRandomCombat(character);
+        assertTrue(combatStarted, "Should enter combat");
+        
+        // Verify character is in combat
+        BattleNad memory combatant = battleNads.getBattleNad(character);
+        assertTrue(combatant.stats.combatants > 0, "Character should be in combat");
+        
+        // Use ShieldBash (ability index 1) without specifying target (targetIndex = 0)
+        // This should work with the auto-target fix
+        vm.prank(userSessionKey1);
+        battleNads.useAbility(character, 0, 1);
+        
+        // Verify the ability was scheduled successfully
+        BattleNad memory afterAbility = battleNads.getBattleNad(character);
+        assertTrue(
+            afterAbility.activeAbility.taskAddress != address(0) && 
+            afterAbility.activeAbility.taskAddress != address(1),
+            "ShieldBash should be scheduled as a task"
+        );
+        
+        console.log("ShieldBash auto-target test passed");
+    }
+
     // =============================================================================
     // ABILITY COOLDOWN AND RESTRICTION TESTS
     // =============================================================================

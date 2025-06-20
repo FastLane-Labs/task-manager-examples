@@ -7,7 +7,7 @@ import { VmSafe } from "forge-std/Vm.sol";
 
 // Specific imports for this test file (if any beyond base)
 import { console } from "forge-std/console.sol"; // Re-add console import as we are not inlining anymore
-import { BattleNad, Inventory, BattleNadLite } from "src/battle-nads/Types.sol";
+import { BattleNad, BattleNadStats, Inventory, BattleNadLite } from "src/battle-nads/Types.sol";
 import { StatSheet } from "src/battle-nads/libraries/StatSheet.sol";
 import { Errors } from "src/battle-nads/libraries/Errors.sol";
 import { Constants } from "src/battle-nads/Constants.sol";
@@ -15,6 +15,7 @@ import { Equipment } from "src/battle-nads/libraries/Equipment.sol";
 
 // Renamed contract focusing on Lifecycle tests
 contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
+    using StatSheet for BattleNadStats;
 
     // Test initial state variables set during deployment
     function test_InitialState() public view {
@@ -177,11 +178,11 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
             console.log("  Monster HP:", monster.stats.health);
 
             // Check for end conditions
-            if (nad3.stats.health == 0) {
+            if (nad3.stats.isDead()) {
                 console.log("PLAYER DIED");
                 break;
             }
-            if (monster.stats.health == 0) {
+            if (monster.stats.isDead()) {
                 console.log("MONSTER DIED");
                 break;
             }

@@ -57,8 +57,8 @@ abstract contract Abilities is Classes {
                     + (uint256(attacker.stats.level) + uint256(attacker.stats.strength) + uint256(attacker.stats.dexterity))
                         * 10;
                 // Only for very very low health values
-                if (damage + 2 > defenderHealth) {
-                    defender.stats.health = 1;
+                if (damage >= defenderHealth) {
+                    defender.stats.health = 0;
                 } else {
                     defender.stats.health = uint16(defenderHealth - damage);
                 }
@@ -116,8 +116,8 @@ abstract contract Abilities is Classes {
                 uint256 defenderHealth = uint256(defender.stats.health);
                 damage = (((defenderHealth * 3) + 1) / 75) + 1;
                 // Only for very very low health values
-                if (damage + 2 > defenderHealth) {
-                    defender.stats.health = 1;
+                if (damage >= defenderHealth) {
+                    defender.stats.health = 0;
                 } else {
                     defender.stats.health = uint16(defenderHealth - damage);
                 }
@@ -207,8 +207,8 @@ abstract contract Abilities is Classes {
                 uint256 defenderHealth = uint256(defender.stats.health);
                 damage = 50 + (uint256(attacker.stats.level) + uint256(attacker.stats.luck) - 1) * 10;
                 // Only for very very low health values
-                if (damage + 2 > defenderHealth) {
-                    defender.stats.health = 1;
+                if (damage >= defenderHealth) {
+                    defender.stats.health = 0;
                 } else {
                     defender.stats.health = uint16(defenderHealth - damage);
                 }
@@ -228,8 +228,8 @@ abstract contract Abilities is Classes {
                 uint256 defenderHealth = uint256(defender.stats.health);
                 damage = 100 + (uint256(attacker.stats.level) * 30) + (defenderHealth / 6);
                 // Only for very very low health values
-                if (damage + 2 > defenderHealth) {
-                    defender.stats.health = 1;
+                if (damage >= defenderHealth) {
+                    defender.stats.health = 0;
                 } else {
                     defender.stats.health = uint16(defenderHealth - damage);
                 }
@@ -292,21 +292,25 @@ abstract contract Abilities is Classes {
                 nextBlock = 0;
             }
         }
-        {
-            // Log the ability occurence
-            _logAbility(attacker, defender, ability, stage, damage, healed, nextBlock);
 
-            // Tag to update ability tracking
-            attacker.tracker.updateActiveAbility = true;
+        // Log the ability occurence
+        _logAbility(attacker, defender, ability, stage, damage, healed, nextBlock);
 
-            // Update tracking
-            attacker.activeAbility.stage = nextStage;
-            attacker.activeAbility.targetBlock = uint64(nextBlock);
-            if (!reschedule) {
-                attacker.activeAbility.taskAddress = _EMPTY_ADDRESS;
-                attacker.activeAbility.ability = Ability.None;
-                attacker.activeAbility.targetIndex = uint8(0);
-            }
+        // Tag to update ability tracking
+        attacker.tracker.updateActiveAbility = true;
+
+        // Update tracking
+        attacker.activeAbility.stage = nextStage;
+        attacker.activeAbility.targetBlock = uint64(nextBlock);
+        if (!reschedule) {
+            attacker.activeAbility.taskAddress = _EMPTY_ADDRESS;
+            attacker.activeAbility.ability = Ability.None;
+            attacker.activeAbility.targetIndex = uint8(0);
+        }
+
+        if (attacker.isDead() || (defender.isDead() && defender.maxHealth > 0)) {
+            reschedule = false;
+            nextBlock = 0;
         }
 
         // Return values

@@ -92,6 +92,8 @@ abstract contract CharacterFactory is Character {
             taskAddress: _EMPTY_ADDRESS,
             targetBlock: 0
         });
+        killMap[character.id] = _UNKILLED;
+        characterTasks[character.id] = _NULL_ID;
 
         emit Events.CharacterCreated(character.id);
 

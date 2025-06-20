@@ -21,7 +21,7 @@ import {
     SessionKey,
     SessionKeyData,
     GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 interface IBattleNads {
     // Gas Relay interface
