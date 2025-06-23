@@ -371,7 +371,7 @@ abstract contract Handler is Balances {
     {
         player.inventory = inventories[player.id];
 
-        if (player.inventory.hasWeapon(armorID)) {
+        if (player.inventory.hasArmor(armorID)) {
             player.stats.armorID = armorID;
             player.tracker.updateStats = true;
         } else {
