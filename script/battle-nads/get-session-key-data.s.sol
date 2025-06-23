@@ -75,7 +75,7 @@ contract GetSessionKeyDataScript is Script {
         uint256 endBlock;
 
         FrontendData memory frontendData = getters.pollForFrontendData(ownerAddress, block.number - BLOCK_OFFSET);
-        
+
         characterID = frontendData.characterID;
         sessionKeyData = frontendData.sessionKeyData;
         character = frontendData.character;

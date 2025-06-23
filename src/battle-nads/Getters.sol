@@ -44,14 +44,7 @@ contract Getters is TaskHandler {
     // Getters
 
     // FOR THE LOVE OF ALL THAT IS GOOD, DO NOT CALL THIS ON CHAIN!
-    function pollForFrontendData(
-        address owner,
-        uint256 startBlock
-    )
-        public
-        view
-        returns (FrontendData memory data)
-    {
+    function pollForFrontendData(address owner, uint256 startBlock) public view returns (FrontendData memory data) {
         data.characterID = characters[owner];
         data.sessionKeyData = getCurrentSessionKeyData(owner);
         data.character = getBattleNad(data.characterID);

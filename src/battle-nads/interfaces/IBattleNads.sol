@@ -32,13 +32,7 @@ interface IBattleNads {
     function deactivateSessionKey(address sessionKeyAddress) external payable;
 
     // Getters
-    function pollForFrontendData(
-        address owner,
-        uint256 startBlock
-    )
-        external
-        view
-        returns (FrontendData memory data);
+    function pollForFrontendData(address owner, uint256 startBlock) external view returns (FrontendData memory data);
 
     function getDataFeed(
         address owner,

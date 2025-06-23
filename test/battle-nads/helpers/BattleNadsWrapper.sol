@@ -2,7 +2,16 @@
 pragma solidity 0.8.28;
 
 import { BattleNadsEntrypoint } from "src/battle-nads/Entrypoint.sol";
-import { BattleNad, BattleNadLite, DataFeed, Log, LogType, Ability, BattleNadStats, FrontendData } from "src/battle-nads/Types.sol";
+import {
+    BattleNad,
+    BattleNadLite,
+    DataFeed,
+    Log,
+    LogType,
+    Ability,
+    BattleNadStats,
+    FrontendData
+} from "src/battle-nads/Types.sol";
 import { StatSheet } from "src/battle-nads/libraries/StatSheet.sol";
 import { console } from "forge-std/console.sol";
 
