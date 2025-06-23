@@ -7,7 +7,7 @@ import {
     SessionKey,
     SessionKeyData,
     GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 import { Getters } from "./Getters.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -292,6 +292,35 @@ contract BattleNadsEntrypoint is Getters {
         return characterID;
     }
 
+    function createCharacter(
+        string memory name,
+        uint256 strength,
+        uint256 vitality,
+        uint256 dexterity,
+        uint256 quickness,
+        uint256 sturdiness,
+        uint256 luck
+    )
+        external
+        payable
+        GasAbstracted
+        returns (bytes32 characterID)
+    {
+        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
+
+        // Call primary function inside of a try/catch so that gas abstraction reimbursement will persist if the
+        // contract call fails
+        try this.handlePlayerCreation(
+            _abstractedMsgSender(), name, strength, vitality, dexterity, quickness, sturdiness, luck
+        ) returns (bytes32 _characterID) {
+            characterID = _characterID;
+        } catch {
+            // Emit event
+        }
+
+        return characterID;
+    }
+
     function allocatePoints(
         bytes32 characterID,
         uint256 newStrength,
@@ -340,6 +369,4 @@ contract BattleNadsEntrypoint is Getters {
             // Emit event
         }
     }
-
-    receive() external payable { }
 }

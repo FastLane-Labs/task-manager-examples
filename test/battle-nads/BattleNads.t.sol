@@ -19,7 +19,7 @@ import {
     CharacterClass	
 } from "src/battle-nads/Types.sol";	
 
-import { SessionKey, SessionKeyData, GasAbstractionTracker  } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+import { SessionKey, SessionKeyData, GasAbstractionTracker  } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 import { BattleNadsEntrypoint } from "src/battle-nads/Entrypoint.sol";	
 import { BattleNadsImplementation } from "src/battle-nads/tasks/BattleNadsImplementation.sol";	

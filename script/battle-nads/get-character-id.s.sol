@@ -31,7 +31,7 @@ contract GetCharacterIDScript is Script {
         console.log("Fetching character ID for owner:", ownerAddress);
 
         // Instantiate the Getters contract interface
-        Getters getters = Getters(gettersAddress);
+        Getters getters = Getters(payable(gettersAddress));
 
         // Call the view function to get the character ID
         vm.startBroadcast();

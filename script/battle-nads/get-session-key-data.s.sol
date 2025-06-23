@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import { Getters } from "../../src/battle-nads/Getters.sol";
-import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 import { BattleNad, BattleNadLite, DataFeed } from "../../src/battle-nads/Types.sol";
 
 contract GetSessionKeyDataScript is Script {
@@ -54,7 +54,7 @@ contract GetSessionKeyDataScript is Script {
         console.log("Fetching Session Key Data for owner:", ownerAddress);
 
         // Instantiate the Getters contract interface
-        Getters getters = Getters(gettersAddress);
+        Getters getters = Getters(payable(gettersAddress));
 
         // Call pollForFrontendData to retrieve sessionKeyData
         // WARNING: This function is complex and potentially gas-intensive.
