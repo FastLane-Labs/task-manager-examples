@@ -15,7 +15,8 @@ import {
     AbilityTracker,
     DataFeed,
     Log,
-    LogType
+    LogType,
+    FrontendData
 } from "../Types.sol";
 import {
     SessionKey,
@@ -37,21 +38,7 @@ interface IBattleNads {
     )
         external
         view
-        returns (
-            bytes32 characterID,
-            SessionKeyData memory sessionKeyData,
-            BattleNad memory character,
-            BattleNadLite[] memory combatants,
-            BattleNadLite[] memory noncombatants,
-            uint8[] memory equipableWeaponIDs,
-            string[] memory equipableWeaponNames,
-            uint8[] memory equipableArmorIDs,
-            string[] memory equipableArmorNames,
-            DataFeed[] memory dataFeeds,
-            uint256 balanceShortfall,
-            uint256 unallocatedAttributePoints,
-            uint256 endBlock
-        );
+        returns (FrontendData memory data);
 
     function getDataFeed(
         address owner,

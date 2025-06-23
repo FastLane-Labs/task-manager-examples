@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import { Getters } from "../../src/battle-nads/Getters.sol";
 import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
-import { BattleNad, BattleNadLite, DataFeed } from "../../src/battle-nads/Types.sol";
+import { BattleNad, BattleNadLite, DataFeed, FrontendData } from "../../src/battle-nads/Types.sol";
 
 contract GetSessionKeyDataScript is Script {
     uint256 BLOCK_OFFSET = 1;
@@ -74,21 +74,21 @@ contract GetSessionKeyDataScript is Script {
         uint256 unallocatedAttributePoints;
         uint256 endBlock;
 
-        (
-            characterID,
-            sessionKeyData,
-            character,
-            combatants,
-            noncombatants,
-            equipableWeaponIDs,
-            equipableWeaponNames,
-            equipableArmorIDs,
-            equipableArmorNames,
-            dataFeeds,
-            balanceShortfall,
-            unallocatedAttributePoints,
-            endBlock
-        ) = getters.pollForFrontendData(ownerAddress, block.number - BLOCK_OFFSET);
+        FrontendData memory frontendData = getters.pollForFrontendData(ownerAddress, block.number - BLOCK_OFFSET);
+        
+        characterID = frontendData.characterID;
+        sessionKeyData = frontendData.sessionKeyData;
+        character = frontendData.character;
+        combatants = frontendData.combatants;
+        noncombatants = frontendData.noncombatants;
+        equipableWeaponIDs = frontendData.equipableWeaponIDs;
+        equipableWeaponNames = frontendData.equipableWeaponNames;
+        equipableArmorIDs = frontendData.equipableArmorIDs;
+        equipableArmorNames = frontendData.equipableArmorNames;
+        dataFeeds = frontendData.dataFeeds;
+        balanceShortfall = frontendData.balanceShortfall;
+        unallocatedAttributePoints = frontendData.unallocatedAttributePoints;
+        endBlock = frontendData.endBlock;
 
         // Log the retrieved session key data
         console.log("--- Session Key Data ---");

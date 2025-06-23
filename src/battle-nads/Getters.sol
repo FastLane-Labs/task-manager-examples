@@ -12,7 +12,8 @@ import {
     Inventory,
     Weapon,
     Armor,
-    DataFeed
+    DataFeed,
+    FrontendData
 } from "./Types.sol";
 
 import {
@@ -49,45 +50,31 @@ contract Getters is TaskHandler {
     )
         public
         view
-        returns (
-            bytes32 characterID,
-            SessionKeyData memory sessionKeyData,
-            BattleNad memory character,
-            BattleNadLite[] memory combatants,
-            BattleNadLite[] memory noncombatants,
-            uint8[] memory equipableWeaponIDs,
-            string[] memory equipableWeaponNames,
-            uint8[] memory equipableArmorIDs,
-            string[] memory equipableArmorNames,
-            DataFeed[] memory dataFeeds,
-            uint256 balanceShortfall,
-            uint256 unallocatedAttributePoints,
-            uint256 endBlock
-        )
+        returns (FrontendData memory data)
     {
-        characterID = characters[owner];
-        sessionKeyData = getCurrentSessionKeyData(owner);
-        character = getBattleNad(characterID);
-        character.activeTask = _loadActiveTaskAddress(characterID);
-        unallocatedAttributePoints = uint256(character.unallocatedStatPoints());
-        balanceShortfall = _shortfallToRecommendedBalanceInMON(character);
-        if (balanceShortfall > 0) {
+        data.characterID = characters[owner];
+        data.sessionKeyData = getCurrentSessionKeyData(owner);
+        data.character = getBattleNad(data.characterID);
+        data.character.activeTask = _loadActiveTaskAddress(data.characterID);
+        data.unallocatedAttributePoints = uint256(data.character.unallocatedStatPoints());
+        data.balanceShortfall = _shortfallToRecommendedBalanceInMON(data.character);
+        if (data.balanceShortfall > 0) {
             uint256 recommendedBalance = _getRecommendedBalanceInMON();
-            balanceShortfall = (
-                (recommendedBalance + balanceShortfall) * BALANCE_SHORTFALL_FACTOR / BALANCE_SHORTFALL_BASE
+            data.balanceShortfall = (
+                (recommendedBalance + data.balanceShortfall) * BALANCE_SHORTFALL_FACTOR / BALANCE_SHORTFALL_BASE
             ) - recommendedBalance;
         }
-        combatants = _getCombatantBattleNads(characterID);
-        noncombatants = _getNonCombatantBattleNads(characterID);
-        (equipableWeaponIDs, equipableWeaponNames,) = _getEquippableWeapons(characterID);
-        (equipableArmorIDs, equipableArmorNames,) = _getEquippableArmor(characterID);
+        data.combatants = _getCombatantBattleNads(data.characterID);
+        data.noncombatants = _getNonCombatantBattleNads(data.characterID);
+        (data.equipableWeaponIDs, data.equipableWeaponNames,) = _getEquippableWeapons(data.characterID);
+        (data.equipableArmorIDs, data.equipableArmorNames,) = _getEquippableArmor(data.characterID);
         if (startBlock >= block.number) {
             startBlock = block.number - 1;
         } else if (startBlock < block.number - 20) {
             startBlock = block.number - 20;
         }
-        endBlock = block.number;
-        dataFeeds = _getDataFeedForRange(character, startBlock, endBlock);
+        data.endBlock = block.number;
+        data.dataFeeds = _getDataFeedForRange(data.character, startBlock, data.endBlock);
     }
 
     function getDataFeed(

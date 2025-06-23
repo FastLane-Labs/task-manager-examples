@@ -1,6 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
+import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
+
 struct BattleNad {
     bytes32 id;
     BattleNadStats stats;
@@ -172,6 +174,22 @@ struct BalanceTracker {
 struct PayoutTracker {
     uint128 boostYieldPayout;
     uint128 ascendPayout;
+}
+
+struct FrontendData {
+    bytes32 characterID;
+    SessionKeyData sessionKeyData;
+    BattleNad character;
+    BattleNadLite[] combatants;
+    BattleNadLite[] noncombatants;
+    uint8[] equipableWeaponIDs;
+    string[] equipableWeaponNames;
+    uint8[] equipableArmorIDs;
+    string[] equipableArmorNames;
+    DataFeed[] dataFeeds;
+    uint256 balanceShortfall;
+    uint256 unallocatedAttributePoints;
+    uint256 endBlock;
 }
 
 enum LogType {
