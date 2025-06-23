@@ -313,7 +313,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest, Constants {
     }
 
     /**
-     * @dev Tests that  Warriors using ShieldBash in combat are able to auto-target
+     * @dev Tests that Warriors using ShieldBash in combat properly target enemies
      */
     function test_Ability_Warrior_ShieldBash() public {
         bytes32 character = character1;
@@ -324,9 +324,7 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest, Constants {
             console.log("Skipping Warrior test - character is class", uint256(charData.stats.class));
             return;
         }
-        
-        console.log("Testing Warrior ShieldBash auto-target fix");
-        
+
         // Enter combat
         bool combatStarted = _triggerRandomCombat(character);
         assertTrue(combatStarted, "Should enter combat");
@@ -335,10 +333,13 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest, Constants {
         BattleNad memory combatant = battleNads.getBattleNad(character);
         assertTrue(combatant.stats.combatants > 0, "Character should be in combat");
         
-        // Use ShieldBash (ability index 1) without specifying target (targetIndex = 0)
-        // This should work with the auto-target fix
+        // Find the correct target to use ShieldBash on
+        uint256 targetIndex = _findCombatTarget(character);
+        assertTrue(targetIndex > 0, "Should find a valid combat target");
+        
+        // Use ShieldBash (ability index 1) with the correct target
         vm.prank(userSessionKey1);
-        battleNads.useAbility(character, 0, 1);
+        battleNads.useAbility(character, targetIndex, 1);
         
         // Verify the ability was scheduled successfully
         BattleNad memory afterAbility = battleNads.getBattleNad(character);
@@ -348,7 +349,10 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest, Constants {
             "ShieldBash should be scheduled as a task"
         );
         
-        console.log("ShieldBash auto-target test passed");
+        // Verify the target was set correctly
+        assertEq(afterAbility.activeAbility.targetIndex, targetIndex, "Should target the correct enemy");
+        
+        console.log("ShieldBash targeting test passed");
     }
 
     // =============================================================================
