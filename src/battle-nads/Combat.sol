@@ -226,7 +226,6 @@ abstract contract Combat is MonsterFactory {
                         _storeBattleNad(attacker);
                         (defender, area) = _processDeathDuringDeceasedTurn(defender, area);
                         attacker = _loadBattleNad(attacker.id, true);
-                        attacker.owner = _loadOwner(attacker.id);
                         attacker.tracker.updateStats = true;
                         defender.id = _NULL_ID;
                         // return early bc we probably dont have much gas left
@@ -247,7 +246,6 @@ abstract contract Combat is MonsterFactory {
                     // CASE: valid target
                 } else {
                     attacker.stats.combatantBitMap = uint64(combatantBitmap);
-                    // defender.owner = _loadOwner(defender.id);
                     return (attacker, defender, area);
                 }
 
@@ -289,11 +287,6 @@ abstract contract Combat is MonsterFactory {
             return (combatant, log);
         }
 
-        // Apply class adjustments if not already done
-        if (combatant.maxHealth == 0) {
-            combatant = _addClassStatAdjustments(combatant);
-        }
-
         // Get max health
         uint256 maxHealth = combatant.maxHealth;
         uint256 currentHealth = uint256(combatant.stats.health);
@@ -317,30 +310,27 @@ abstract contract Combat is MonsterFactory {
         // Health regen has to be normalized for the default cooldown to prevent quickness points from
         // giving extreme health regeneration benefits
         uint256 targetHealthRegeneration = uint256(combatant.stats.vitality) * VITALITY_REGEN_MODIFIER;
-        uint256 cooldown = _cooldown(combatant.stats);
 
         if (combatant.isMonster()) {
             targetHealthRegeneration /= 2;
         }
 
-        uint256 adjustedHealthRegeneration = targetHealthRegeneration * cooldown / DEFAULT_TURN_TIME;
-
         if (combatant.stats.class == CharacterClass.Monk) {
-            adjustedHealthRegeneration += (uint256(combatant.stats.level) * 2 + 10);
+            targetHealthRegeneration += (uint256(combatant.stats.level) * 2 + 10);
         } else if (combatant.stats.class == CharacterClass.Bard) {
-            adjustedHealthRegeneration = 1;
+            targetHealthRegeneration = 1;
         }
 
         if (combatant.isPraying()) {
-            adjustedHealthRegeneration *= 2;
+            targetHealthRegeneration *= 2;
         } else if (combatant.isPoisoned()) {
-            adjustedHealthRegeneration /= 4;
+            targetHealthRegeneration /= 4;
         } else if (combatant.isCursed()) {
-            adjustedHealthRegeneration = 0;
+            targetHealthRegeneration = 0;
         }
 
         // Cannot regenerate above max
-        if (currentHealth + adjustedHealthRegeneration > maxHealth) {
+        if (currentHealth + targetHealthRegeneration > maxHealth) {
             uint256 recovered = maxHealth > currentHealth ? maxHealth - currentHealth : 0;
 
             log.healthHealed = uint16(recovered);
@@ -352,12 +342,12 @@ abstract contract Combat is MonsterFactory {
             combatant.stats.health = uint16(currentHealth);
         } else {
             emit Events.CombatHealthRecovered(
-                combatant.areaID(), combatant.id, adjustedHealthRegeneration, currentHealth + adjustedHealthRegeneration
+                combatant.areaID(), combatant.id, targetHealthRegeneration, currentHealth + targetHealthRegeneration
             );
 
-            log.healthHealed = uint16(adjustedHealthRegeneration);
+            log.healthHealed = uint16(targetHealthRegeneration);
 
-            currentHealth += adjustedHealthRegeneration;
+            currentHealth += targetHealthRegeneration;
 
             combatant.stats.health = uint16(currentHealth);
         }
@@ -673,10 +663,16 @@ abstract contract Combat is MonsterFactory {
         if (rawDamage > type(uint16).max) rawDamage = type(uint16).max;
 
         if (attacker.isMonster()) {
-            rawDamage = rawDamage * 2 / 3;
+            if (attacker.stats.class == CharacterClass.Boss) {
+                rawDamage = rawDamage * 4 / 3;
+            } else if (attacker.stats.class == CharacterClass.Elite) {
+                rawDamage = rawDamage * 9 / 10;
+            } else {
+                rawDamage = rawDamage * 3 / 4;
+            }
         }
 
-        return uint16(rawDamage);
+        return uint16(rawDamage * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE);
     }
 
     function _handleLoot(

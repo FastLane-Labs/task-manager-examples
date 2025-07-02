@@ -12,7 +12,8 @@ import {
     Inventory,
     Weapon,
     Armor,
-    DataFeed
+    DataFeed,
+    CombatTracker
 } from "./Types.sol";
 
 import {
@@ -61,15 +62,12 @@ contract Getters is TaskHandler {
             string[] memory equipableArmorNames,
             DataFeed[] memory dataFeeds,
             uint256 balanceShortfall,
-            uint256 unallocatedAttributePoints,
             uint256 endBlock
         )
     {
         characterID = characters[owner];
         sessionKeyData = getCurrentSessionKeyData(owner);
         character = getBattleNad(characterID);
-        character.activeTask = _loadActiveTaskAddress(characterID);
-        unallocatedAttributePoints = uint256(character.unallocatedStatPoints());
         balanceShortfall = _shortfallToRecommendedBalanceInMON(character);
         if (balanceShortfall > 0) {
             uint256 recommendedBalance = _getRecommendedBalanceInMON();
@@ -126,15 +124,11 @@ contract Getters is TaskHandler {
 
     // FOR THE LOVE OF ALL THAT IS GOOD, DO NOT CALL THIS ON CHAIN!
     function getBattleNad(bytes32 characterID) public view returns (BattleNad memory character) {
-        character = _loadBattleNad(characterID);
-        character.activeTask = _loadActiveTaskAddress(characterID);
-        if (character.isDead()) {
-            character.tracker.died = true;
-        }
-        character = _addClassStatAdjustments(character);
+        character = _loadBattleNad(characterID, true);
+        character.activeTask = _buildCombatTracker(character);
         character.inventory = inventories[characterID];
 
-        if (!character.tracker.died) {
+        if (!character.isDead()) {
             character = character.loadEquipment();
             if (!character.isMonster()) {
                 character.activeAbility = _loadAbility(characterID);

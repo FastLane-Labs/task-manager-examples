@@ -87,8 +87,8 @@ abstract contract Classes is Logs, Constants {
         if (!combatant.tracker.classStatsAdded) {
             combatant.stats = _handleAddClassStats(combatant.stats);
             combatant.tracker.classStatsAdded = true;
+            combatant.maxHealth = _maxHealth(combatant.stats);
         }
-        combatant.maxHealth = _maxHealth(combatant.stats);
         return combatant;
     }
 

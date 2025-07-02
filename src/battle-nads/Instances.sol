@@ -25,7 +25,7 @@ abstract contract Instances is Combat {
     {
         bytes32 combatantID = areaCombatants[depth][x][y][index];
         if (_isValidID(combatantID)) {
-            combatant = _loadBattleNad(combatantID);
+            combatant = _loadBattleNad(combatantID, true);
         }
     }
 
@@ -56,6 +56,13 @@ abstract contract Instances is Combat {
 
         if (!isBossEncounter) {
             aggroRange -= uint256(player.stats.level);
+
+            if (player.stats.depth < player.stats.level) {
+                aggroRange /= 2;
+            } else if (player.stats.depth > player.stats.level) {
+                aggroRange += uint256(player.stats.depth) - uint256(player.stats.level);
+            }
+
             if (aggroRange > MAX_AGGRO_RANGE) aggroRange = MAX_AGGRO_RANGE;
         }
 
@@ -83,7 +90,7 @@ abstract contract Instances is Combat {
                 // Make sure we aren't spawning too many mobs
             } else if (canSpawnNewMonsters) {
                 uint256 aggroThreshold = DEFAULT_AGGRO_CHANCE + (aggroRange / 2);
-                uint256 aggroRoll = uint256(0xff) & uint256(uint8(uint256(randomSeed >> (aggroRange * 8)))) / 2;
+                uint256 aggroRoll = (uint256(0xff) & uint256(uint8(uint256(randomSeed >> (aggroRange * 8))))) / 2;
                 if (aggroRoll < aggroThreshold) {
                     return (uint8(index), true);
                 }

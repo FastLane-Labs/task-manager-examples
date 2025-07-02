@@ -67,7 +67,7 @@ abstract contract Handler is Balances {
         (BattleArea memory area, uint8 x, uint8 y) = _unrandomSpawnCoordinates(player);
         uint8 depth = 1;
         if (x == 0 && y == 0) {
-            return (player, true, block.number + 8);
+            return (player, true, block.number + SPAWN_DELAY);
         }
 
         // Establish a random seed
@@ -159,7 +159,7 @@ abstract contract Handler is Balances {
 
         // Only create for monster if task doesn't already exist
         if (newMonster) {
-            uint256 targetBlock = block.number + _cooldown(monster.stats);
+            uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
             (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
             if (!scheduledTask) {
                 emit Events.TaskNotScheduledInHandler(3, monster.id, block.number, targetBlock);
@@ -170,7 +170,7 @@ abstract contract Handler is Balances {
             if (!scheduledTask) {
                 monster.owner = player.owner;
                 monster.tracker.updateOwner = true;
-                uint256 targetBlock = block.number + _cooldown(monster.stats);
+                uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
                 (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
                 if (!scheduledTask) {
                     emit Events.TaskNotScheduledInHandler(4, monster.id, block.number, targetBlock);
@@ -179,7 +179,7 @@ abstract contract Handler is Balances {
         }
 
         if (scheduledTask) {
-            uint256 targetBlock = block.number + _cooldown(player.stats);
+            uint256 targetBlock = block.number + _cooldown(player.stats) + COMBAT_COLD_START_DELAY_ATTACKER;
             (player, scheduledTask) = _createOrRescheduleCombatTask(player, targetBlock);
             if (!scheduledTask) {
                 emit Events.TaskNotScheduledInHandler(5, player.id, block.number, targetBlock);
@@ -206,8 +206,8 @@ abstract contract Handler is Balances {
         // Commit honorable ascenscion, return inventory balance to owner after delay;
         player = _createOrRescheduleAscendTask(player);
 
-        // Set health to 1 while ascending
-        player.stats.health = 1;
+        // Set health to 2 while ascending
+        player.stats.health = 2;
         player.tracker.updateStats = true;
         return player;
     }
@@ -233,17 +233,6 @@ abstract contract Handler is Balances {
         if (!_canEnterMutualCombatToTheDeath(attacker, defender)) {
             revert Errors.CannotAttackDueToLevelCap();
         }
-
-        /*
-        // Revert if we're already attacking this target and the defender knows it.
-        if (
-            attacker.stats.nextTargetIndex == uint8(targetIndex)
-                && defender.stats.combatantBitMap & (1 << uint256(attacker.stats.index)) != 0
-        ) {
-            // return _exitCombat(attacker);
-            revert Errors.AlreadyInCombat(attacker.stats.index, defender.stats.index);
-        }
-        */
 
         BattleArea memory area = _loadArea(attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
@@ -280,23 +269,31 @@ abstract contract Handler is Balances {
                 defender.owner = attacker.owner;
                 defender.tracker.updateOwner = true;
             }
-            (defender, scheduledTask) =
-                _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+            (defender, scheduledTask) = _createOrRescheduleCombatTask(
+                defender, block.number + _cooldown(defender.stats) + COMBAT_COLD_START_DELAY_DEFENDER
+            );
             if (!scheduledTask) {
                 emit Events.TaskNotScheduledInHandler(
-                    1, defender.id, block.number, block.number + _cooldown(defender.stats)
+                    1,
+                    defender.id,
+                    block.number,
+                    block.number + _cooldown(defender.stats) + COMBAT_COLD_START_DELAY_DEFENDER
                 );
             }
         }
 
         (scheduledTask,) = _checkClearTasks(attacker);
         if (!scheduledTask) {
-            (attacker, scheduledTask) =
-                _createOrRescheduleCombatTask(attacker, block.number + _cooldown(attacker.stats));
+            (attacker, scheduledTask) = _createOrRescheduleCombatTask(
+                attacker, block.number + _cooldown(attacker.stats) + COMBAT_COLD_START_DELAY_ATTACKER
+            );
             // This is being called by a non-task function
             if (!scheduledTask) {
                 emit Events.TaskNotScheduledInHandler(
-                    2, attacker.id, block.number, block.number + _cooldown(attacker.stats)
+                    2,
+                    attacker.id,
+                    block.number,
+                    block.number + _cooldown(attacker.stats) + COMBAT_COLD_START_DELAY_ATTACKER
                 );
             }
         }
@@ -588,14 +585,12 @@ abstract contract Handler is Balances {
                 // Return early if target cant be found
                 return (attacker, false, 0);
             }
-            defender = _loadBattleNad(defender.id);
+            defender = _loadBattleNad(defender.id, true);
 
             if (defender.isDead()) {
                 // Return early if target cant be found - process their death in regular combat task.
                 return (attacker, false, 0);
             }
-
-            defender = _addClassStatAdjustments(defender);
         }
 
         // Make sure the characters are in combat if appropriate

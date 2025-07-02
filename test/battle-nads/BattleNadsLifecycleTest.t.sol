@@ -77,7 +77,7 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
         assertTrue(Equipment.hasArmor(nad1_initial.inventory, nad1_initial.stats.armorID), "Armor not in inventory bitmap");
 
         // Assert Spawn Task Scheduled
-        assertNotEq(nad1_initial.activeTask, address(0), "Spawn task not set");
+        assertNotEq(nad1_initial.activeTask.taskAddress, address(0), "Spawn task not set");
 
         _rollForward(1); // Allow time for task execution
 
@@ -304,7 +304,7 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
         assertEq(nad_before.stats.depth, 0, "Initial depth should be 0");
         assertEq(nad_before.stats.x, 0, "Initial x should be 0");
         assertEq(nad_before.stats.y, 0, "Initial y should be 0");
-        assertNotEq(nad_before.activeTask, address(0), "Initial activeTask should be set");
+        assertNotEq(nad_before.activeTask.taskAddress, address(0), "Initial activeTask should be set");
 
         // Wait for spawn 
         BattleNad memory nad_after = _waitForSpawn(charId); 
@@ -314,7 +314,7 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
         assertTrue(nad_after.stats.x != 0, "Spawned x should not be 0");
         assertTrue(nad_after.stats.y != 0, "Spawned y should not be 0");
         assertTrue(nad_after.stats.index < 64 && nad_after.stats.index > 0, "Spawned index invalid"); 
-        assertTrue(nad_after.activeTask == address(0) || nad_after.activeTask == address(1), "activeTask should be cleared after spawn");
+        assertTrue(nad_after.activeTask.taskAddress == address(0) || nad_after.activeTask.taskAddress == address(1), "activeTask should be cleared after spawn");
     }
 
     function test_AllocatePoints_Success() public {

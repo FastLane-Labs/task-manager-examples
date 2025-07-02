@@ -26,7 +26,7 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
     }
 
     function getLiteCombatants(address owner) public view returns (BattleNadLite[] memory liteCombatants) {
-        (,,, liteCombatants,,,,,,,,,) = pollForFrontendData(owner, block.number - 1);
+        (,,, liteCombatants,,,,,,,,) = pollForFrontendData(owner, block.number - 1);
     }
 
     function getCombatantBattleNads(address owner) public view returns (BattleNad[] memory combatants) {
@@ -101,7 +101,7 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
         console.log("     (map,next):", battleNad.stats.combatantBitMap, battleNad.stats.nextTargetIndex);
         // Broke down equip log (was already ok, but for consistency)
         console.log("  Equip (wep,arm):", battleNad.stats.weaponID, battleNad.stats.armorID); // 4 args - OK
-        console.log("  Task:", battleNad.activeTask); // 2 args - OK
+        console.log("  Task:", battleNad.activeTask.taskAddress); // 2 args - OK
         console.log("  Balance:", battleNad.inventory.balance); // 2 args - OK
     }
 

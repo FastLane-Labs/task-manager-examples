@@ -15,29 +15,28 @@ abstract contract Character is Abilities {
     using Equipment for Inventory;
     using StatSheet for BattleNad;
 
-    function _cooldown(BattleNadStats memory stats) internal pure returns (uint256 cooldown) {
+    function _cooldown(BattleNadStats memory stats) internal view returns (uint256 cooldown) {
         uint256 quickness = uint256(stats.quickness) + 1;
-        uint256 baseline = QUICKNESS_BASELINE;
-        cooldown = DEFAULT_TURN_TIME;
-        do {
-            if (cooldown < 3) {
-                break;
-            }
-            if (quickness < baseline) {
-                if (quickness + uint256(stats.luck) > baseline) {
-                    --cooldown;
-                }
-                break;
-            }
-            --cooldown;
-            baseline = baseline * 3 / 2 + 1;
-        } while (cooldown > MIN_TURN_TIME);
+        uint256 luck = uint256(stats.luck);
 
-        if (
-            stats.class == CharacterClass.Basic || stats.class == CharacterClass.Elite
-                || stats.class == CharacterClass.Boss
-        ) {
-            ++cooldown;
+        bytes32 randomSeed =
+            keccak256(abi.encode(_COOLDOWN_SEED, block.number, quickness / 2, blockhash(block.number - 1)));
+
+        uint256 cooldownRoll = uint256(0xff) & uint256(randomSeed >> 120);
+
+        // Scale up the seed with level to prevent power creep
+        cooldownRoll = (cooldownRoll / 2) + uint256(stats.level);
+
+        cooldown = DEFAULT_TURN_TIME;
+
+        if (quickness * QUICKNESS_BASELINE + luck > cooldownRoll) {
+            --cooldown;
+        } else if (cooldownRoll - uint256(stats.level) < luck) {
+            --cooldown;
+        }
+
+        if (quickness * 2 + uint256(stats.dexterity) + luck > cooldownRoll - uint256(stats.level)) {
+            --cooldown;
         }
 
         return cooldown;

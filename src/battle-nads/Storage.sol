@@ -123,24 +123,20 @@ abstract contract Storage {
 
     function _loadBattleNad(bytes32 characterID, bool adjustStats) internal view returns (BattleNad memory character) {
         character.id = characterID;
+        character.owner = owners[characterID];
         character.stats = _loadBattleNadStats(characterID);
-        if (adjustStats) {
-            character = _addClassStatAdjustments(character);
-        }
         if (character.isDead()) {
             character.tracker.died = true;
+        } else {
+            if (adjustStats) {
+                character = _addClassStatAdjustments(character);
+            }
         }
         return character;
     }
 
     function _loadBattleNad(bytes32 characterID) internal view returns (BattleNad memory) {
-        BattleNad memory character = _loadBattleNad(characterID, false);
-        // character.activeTask = characterTasks[characterID];
-        character.owner = owners[characterID];
-        if (character.isDead()) {
-            character.tracker.died = true;
-        }
-        return character;
+        return _loadBattleNad(characterID, false);
     }
 
     function _loadOwner(bytes32 characterID) internal view returns (address owner) {
@@ -309,11 +305,6 @@ abstract contract Storage {
         }
 
         delete owners[combatant.id];
-        // delete characterTasks[combatant.id];
-        // delete characterNames[combatant.id];
-        // delete characterStats[combatant.id];
-
-        //characterStats[combatant.id] = cleanedStats;
     }
 
     function _isValidAddress(address target) internal pure returns (bool) {

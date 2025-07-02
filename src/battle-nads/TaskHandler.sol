@@ -16,7 +16,8 @@ import {
     Armor,
     StorageTracker,
     Ability,
-    AbilityTracker
+    AbilityTracker,
+    CombatTracker
 } from "./Types.sol";
 import { Handler } from "./Handler.sol";
 import { Names } from "./libraries/Names.sol";
@@ -187,7 +188,7 @@ contract TaskHandler is Handler {
     function _loadBattleNadInTask(bytes32 characterID) internal view returns (BattleNad memory combatant) {
         // Load character
         combatant = _loadBattleNad(characterID, true);
-        combatant.activeTask = msg.sender;
+        combatant.activeTask.taskAddress = msg.sender;
         combatant.owner = _abstractedMsgSender();
         if (!_isTask()) {
             revert Errors.InvalidCaller(msg.sender);
@@ -455,5 +456,59 @@ contract TaskHandler is Handler {
             }
         }
         _storeArea(area, depth, x, y);
+    }
+
+    function _buildCombatTracker(BattleNad memory character)
+        internal
+        view
+        returns (CombatTracker memory combatTracker)
+    {
+        bytes32 taskID = _loadActiveTaskID(character.id);
+        if (!_isValidID(taskID)) {
+            combatTracker.hasTaskError = character.isInCombat();
+            combatTracker.taskAddress = _EMPTY_ADDRESS;
+            return combatTracker;
+        }
+
+        address taskAddress = address(uint160(uint256(taskID)));
+        uint64 targetBlock = uint64(uint256(taskID >> 160));
+
+        if (!_isValidAddress(taskAddress)) {
+            combatTracker.hasTaskError = character.isInCombat();
+            combatTracker.taskAddress = _EMPTY_ADDRESS;
+            return combatTracker;
+        }
+
+        ICustomTaskManager.LoadBalancer memory loadBal = ICustomTaskManager(TASK_MANAGER).S_loadBalancer();
+
+        if (loadBal.activeBlockMedium > targetBlock) {
+            combatTracker.hasTaskError = character.isInCombat();
+            return combatTracker;
+        } else {
+            SessionKey memory key = _loadSessionKey(taskAddress);
+            if (key.expiration <= block.number) {
+                combatTracker.hasTaskError = true;
+                return combatTracker;
+            }
+        }
+
+        combatTracker.taskAddress = taskAddress;
+        combatTracker.targetBlock = targetBlock;
+
+        // NOTE: Active block can't pass current block
+        uint256 executorDelay = block.number - loadBal.activeBlockMedium;
+        combatTracker.executorDelay =
+            executorDelay > MAX_ESTIMATED_EXECUTOR_DELAY ? MAX_ESTIMATED_EXECUTOR_DELAY_UINT8 : uint8(executorDelay);
+
+        if (targetBlock > block.number) {
+            combatTracker.pending = true;
+            return combatTracker;
+        }
+
+        uint256 taskDelay = block.number - targetBlock;
+        combatTracker.taskDelay =
+            taskDelay > MAX_ESTIMATED_TASK_DELAY ? MAX_ESTIMATED_TASK_DELAY_UINT8 : uint8(taskDelay);
+
+        return combatTracker;
     }
 }

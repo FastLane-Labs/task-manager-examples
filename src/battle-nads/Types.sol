@@ -9,7 +9,7 @@ struct BattleNad {
     Armor armor;
     Inventory inventory;
     StorageTracker tracker;
-    address activeTask;
+    CombatTracker activeTask;
     AbilityTracker activeAbility;
     address owner;
     string name;
@@ -147,6 +147,15 @@ struct AbilityTracker {
     Ability ability;
     uint8 stage;
     uint8 targetIndex;
+    address taskAddress;
+    uint64 targetBlock;
+}
+
+struct CombatTracker {
+    bool hasTaskError;
+    bool pending;
+    uint8 taskDelay;
+    uint8 executorDelay;
     address taskAddress;
     uint64 targetBlock;
 }

@@ -71,7 +71,6 @@ contract GetSessionKeyDataScript is Script {
         string[] memory equipableArmorNames;
         DataFeed[] memory dataFeeds;
         uint256 balanceShortfall;
-        uint256 unallocatedAttributePoints;
         uint256 endBlock;
 
         (
@@ -86,7 +85,6 @@ contract GetSessionKeyDataScript is Script {
             equipableArmorNames,
             dataFeeds,
             balanceShortfall,
-            unallocatedAttributePoints,
             endBlock
         ) = getters.pollForFrontendData(ownerAddress, block.number - BLOCK_OFFSET);
 
