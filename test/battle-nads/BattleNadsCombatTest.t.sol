@@ -24,47 +24,20 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         character1 = _createCharacterAndSpawn(1, "Fighter", 6, 6, 5, 5, 5, 5, userSessionKey1, uint64(type(uint64).max));
         character2 = _createCharacterAndSpawn(2, "Defender", 5, 7, 5, 5, 5, 5, userSessionKey2, uint64(type(uint64).max));
         
-        // If either character is a Bard (class 4), recreate them
+        // If either character is a Bard (class 4), change their class to Fighter
         // Bards have ineffective abilities that can stall combat tests
-        _ensureNotBard(1);
-        _ensureNotBard(2);
-    }
-    
-    function _ensureNotBard(uint256 characterIndex) internal {
-        bytes32 charId = characterIndex == 1 ? character1 : character2;
-        BattleNad memory nad = battleNads.getBattleNad(charId);
-        
-        if (uint8(nad.stats.class) == 4) { // Bard class
-            console.log("Character", characterIndex, "is a Bard - recreating to avoid test issues");
-            
-            // Create a new character until we get a non-Bard
-            uint256 attempts = 0;
-            while (uint8(nad.stats.class) == 4 && attempts < 10) {
-                string memory name = characterIndex == 1 ? "Fighter" : "Defender";
-                address sessionKey = characterIndex == 1 ? userSessionKey1 : userSessionKey2;
-                address owner = characterIndex == 1 ? user1 : user2;
-                
-                uint256 creationCost = battleNads.estimateBuyInAmountInMON();
-                vm.prank(owner);
-                charId = battleNads.createCharacter{ value: creationCost }(
-                    name, 6, 6, 5, 5, 5, 5, sessionKey, uint64(type(uint64).max)
-                );
-                
-                _waitForSpawn(charId);
-                nad = battleNads.getBattleNad(charId);
-                attempts++;
-            }
-            
-            // Update the character reference
-            if (characterIndex == 1) {
-                character1 = charId;
-            } else {
-                character2 = charId;
-            }
-            
-            require(uint8(nad.stats.class) != 4, "Could not create non-Bard character after multiple attempts");
+        BattleNad memory nad1 = battleNads.getBattleNad(character1);
+        BattleNad memory nad2 = battleNads.getBattleNad(character2);
+        if (uint8(nad1.stats.class) == 4) {
+            console.log("Character1 is a Bard - changing to Fighter class");
+            _modifyCharacterStat(character1, "class", 5);
+        }
+        if (uint8(nad2.stats.class) == 4) {
+            console.log("Character2 is a Bard - changing to Fighter class");
+            _modifyCharacterStat(character2, "class", 5);
         }
     }
+
 
     // =============================================================================
     // COMBAT ENTRY AND FORBIDDEN ACTIONS
