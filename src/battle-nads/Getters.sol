@@ -10,7 +10,8 @@ import {
     Inventory,
     Weapon,
     Armor,
-    DataFeed
+    DataFeed,
+    EquipmentInfo
 } from "./Types.sol";
 
 import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
@@ -68,8 +69,14 @@ contract Getters is TaskHandler {
         }
         combatants = _getCombatantBattleNads(characterID);
         noncombatants = _getNonCombatantBattleNads(characterID);
-        (equipableWeaponIDs, equipableWeaponNames,) = _getEquippableWeapons(characterID);
-        (equipableArmorIDs, equipableArmorNames,) = _getEquippableArmor(characterID);
+
+        EquipmentInfo memory weaponInfo = _getEquippableWeapons(characterID);
+        equipableWeaponIDs = weaponInfo.itemIDs;
+        equipableWeaponNames = weaponInfo.itemNames;
+
+        EquipmentInfo memory armorInfo = _getEquippableArmor(characterID);
+        equipableArmorIDs = armorInfo.itemIDs;
+        equipableArmorNames = armorInfo.itemNames;
         if (startBlock >= block.number) {
             startBlock = block.number - 1;
         } else if (startBlock < block.number - 20) {
@@ -384,18 +391,12 @@ contract Getters is TaskHandler {
     /**
      * @notice Get weapons that a character can equip
      * @param characterID ID of the character
-     * @return weaponIDs Array of equippable weapon IDs
-     * @return weaponNames Array of weapon names
-     * @return currentWeaponID Currently equipped weapon ID
+     * @return equipmentInfo Struct containing weapon IDs, names, and current weapon
      */
-    function _getEquippableWeapons(bytes32 characterID)
-        internal
-        view
-        returns (uint8[] memory weaponIDs, string[] memory weaponNames, uint8 currentWeaponID)
-    {
+    function _getEquippableWeapons(bytes32 characterID) internal view returns (EquipmentInfo memory equipmentInfo) {
         BattleNad memory character = getBattleNad(characterID);
         Inventory memory inv = character.inventory;
-        currentWeaponID = character.stats.weaponID;
+        equipmentInfo.currentItemID = character.stats.weaponID;
 
         // Count available weapons
         uint256 weaponCount = 0;
@@ -406,37 +407,31 @@ contract Getters is TaskHandler {
         }
 
         // Initialize arrays
-        weaponIDs = new uint8[](weaponCount);
-        weaponNames = new string[](weaponCount);
+        equipmentInfo.itemIDs = new uint8[](weaponCount);
+        equipmentInfo.itemNames = new string[](weaponCount);
 
         // Fill arrays
         uint256 index = 0;
         for (uint8 i = 0; i < 64; i++) {
             if (inv.weaponBitmap & (1 << i) != 0) {
-                weaponIDs[index] = i;
-                weaponNames[index] = getWeaponName(i);
+                equipmentInfo.itemIDs[index] = i;
+                equipmentInfo.itemNames[index] = getWeaponName(i);
                 index++;
             }
         }
 
-        return (weaponIDs, weaponNames, currentWeaponID);
+        return equipmentInfo;
     }
 
     /**
      * @notice Get armor that a character can equip
      * @param characterID ID of the character
-     * @return armorIDs Array of equippable armor IDs
-     * @return armorNames Array of armor names
-     * @return currentArmorID Currently equipped armor ID
+     * @return equipmentInfo Struct containing armor IDs, names, and current armor
      */
-    function _getEquippableArmor(bytes32 characterID)
-        internal
-        view
-        returns (uint8[] memory armorIDs, string[] memory armorNames, uint8 currentArmorID)
-    {
+    function _getEquippableArmor(bytes32 characterID) internal view returns (EquipmentInfo memory equipmentInfo) {
         BattleNad memory character = getBattleNad(characterID);
         Inventory memory inv = character.inventory;
-        currentArmorID = character.stats.armorID;
+        equipmentInfo.currentItemID = character.stats.armorID;
 
         // Count available armor
         uint256 armorCount = 0;
@@ -447,20 +442,20 @@ contract Getters is TaskHandler {
         }
 
         // Initialize arrays
-        armorIDs = new uint8[](armorCount);
-        armorNames = new string[](armorCount);
+        equipmentInfo.itemIDs = new uint8[](armorCount);
+        equipmentInfo.itemNames = new string[](armorCount);
 
         // Fill arrays
         uint256 index = 0;
         for (uint8 i = 0; i < 64; i++) {
             if (inv.armorBitmap & (1 << i) != 0) {
-                armorIDs[index] = i;
-                armorNames[index] = getArmorName(i);
+                equipmentInfo.itemIDs[index] = i;
+                equipmentInfo.itemNames[index] = getArmorName(i);
                 index++;
             }
         }
 
-        return (armorIDs, armorNames, currentArmorID);
+        return equipmentInfo;
     }
 
     function _shortfallToRecommendedBalanceInMON(BattleNad memory player)
