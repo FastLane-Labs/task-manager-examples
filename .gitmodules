@@ -10,4 +10,4 @@
 	url = https://github.com/vectorized/solady
 [submodule "lib/fastlane-contracts"]
 	path = lib/fastlane-contracts
-	url = https://github.com/FastLane-Labs/fastlane-contracts
+	url = https://github.com/Fastlane-Labs/fastlane-contracts

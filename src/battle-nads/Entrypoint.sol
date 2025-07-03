@@ -7,7 +7,7 @@ import {
     SessionKey,
     SessionKeyData,
     GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 import { Getters } from "./Getters.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -26,12 +26,8 @@ contract BattleNadsEntrypoint is Getters {
 
     // ACTION FUNCTIONS
     function moveNorth(bytes32 characterID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS - 6000 + MOVEMENT_EXTRA_GAS) {
-            revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-        }
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.owner != _abstractedMsgSender()) revert Errors.InvalidCharacterOwner(characterID, player.owner);
@@ -48,12 +44,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function moveSouth(bytes32 characterID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS - 6000 + MOVEMENT_EXTRA_GAS) {
-            revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-        }
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -70,12 +62,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function moveEast(bytes32 characterID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS) {
-            revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-        }
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.owner != _abstractedMsgSender()) revert Errors.InvalidCharacterOwner(characterID, player.owner);
@@ -94,12 +82,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function moveWest(bytes32 characterID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS) {
-            revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-        }
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -116,12 +100,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function moveUp(bytes32 characterID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS) {
-            revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-        }
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -138,12 +118,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function moveDown(bytes32 characterID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS) {
-            revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-        }
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -160,10 +136,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function attack(bytes32 characterID, uint256 targetIndex) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.owner != _abstractedMsgSender()) revert Errors.InvalidCharacterOwner(characterID, player.owner);
@@ -181,8 +155,6 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function useAbility(bytes32 characterID, uint256 targetIndex, uint256 abilityIndex) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Load character
         BattleNad memory player = _loadBattleNad(characterID, true);
         player.owner = _loadOwner(characterID);
@@ -201,10 +173,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function ascend(bytes32 characterID) external payable GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID, false);
+        BattleNad memory player = _loadBattleNad(characterID, true);
         player.owner = _loadOwner(characterID);
 
         // Validate character ownership
@@ -225,10 +195,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function equipWeapon(bytes32 characterID, uint8 weaponID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -244,10 +212,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function equipArmor(bytes32 characterID, uint8 armorID) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -278,12 +244,37 @@ contract BattleNadsEntrypoint is Getters {
         CreateOrUpdateSessionKey(sessionKey, msg.sender, sessionKeyDeadline, msg.value)
         returns (bytes32 characterID)
     {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Call primary function inside of a try/catch so that gas abstraction reimbursement will persist if the
         // contract call fails
         try this.handlePlayerCreation(msg.sender, name, strength, vitality, dexterity, quickness, sturdiness, luck)
         returns (bytes32 _characterID) {
+            characterID = _characterID;
+        } catch {
+            // Emit event
+        }
+
+        return characterID;
+    }
+
+    function createCharacter(
+        string memory name,
+        uint256 strength,
+        uint256 vitality,
+        uint256 dexterity,
+        uint256 quickness,
+        uint256 sturdiness,
+        uint256 luck
+    )
+        external
+        payable
+        GasAbstracted
+        returns (bytes32 characterID)
+    {
+        // Call primary function inside of a try/catch so that gas abstraction reimbursement will persist if the
+        // contract call fails
+        try this.handlePlayerCreation(
+            _abstractedMsgSender(), name, strength, vitality, dexterity, quickness, sturdiness, luck
+        ) returns (bytes32 _characterID) {
             characterID = _characterID;
         } catch {
             // Emit event
@@ -304,10 +295,9 @@ contract BattleNadsEntrypoint is Getters {
         external
         GasAbstracted
     {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        // NOTE: Do *NOT* assign the class stat boosts!
+        BattleNad memory player = _loadBattleNad(characterID, false);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -323,10 +313,8 @@ contract BattleNadsEntrypoint is Getters {
     }
 
     function zoneChat(bytes32 characterID, string calldata message) external GasAbstracted {
-        if (gasleft() < MIN_EXECUTION_GAS) revert Errors.NotEnoughGas(gasleft(), MIN_EXECUTION_GAS);
-
         // Load character
-        BattleNad memory player = _loadBattleNad(characterID);
+        BattleNad memory player = _loadBattleNad(characterID, true);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -340,6 +328,4 @@ contract BattleNadsEntrypoint is Getters {
             // Emit event
         }
     }
-
-    receive() external payable { }
 }

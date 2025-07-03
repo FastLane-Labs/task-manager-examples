@@ -49,7 +49,7 @@ abstract contract Handler is Balances {
         character = _allocatePlayerBuyIn(character);
 
         bool scheduled;
-        (character, scheduled) = _createSpawnTask(character, block.number + SPAWN_DELAY);
+        (character, scheduled) = _createOrRescheduleSpawnTask(character, block.number + SPAWN_DELAY);
         if (!scheduled) {
             revert Errors.SpawnTaskNotScheduled();
         }
@@ -64,10 +64,10 @@ abstract contract Handler is Balances {
         returns (BattleNad memory, bool reschedule, uint256 blockNumber)
     {
         // Find spawn point
-        (BattleArea memory area, uint8 x, uint8 y) = _randomSpawnCoordinates(player);
+        (BattleArea memory area, uint8 x, uint8 y) = _unrandomSpawnCoordinates(player);
         uint8 depth = 1;
         if (x == 0 && y == 0) {
-            return (player, true, block.number + 8);
+            return (player, true, block.number + SPAWN_DELAY);
         }
 
         // Establish a random seed
@@ -134,6 +134,7 @@ abstract contract Handler is Balances {
 
         // If there's no monster, return early
         if (monsterIndex == 0) {
+            _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
             return player;
         }
 
@@ -154,28 +155,35 @@ abstract contract Handler is Balances {
         (monster, player) = _enterMutualCombatToTheDeath(monster, player);
 
         // Create tasks
-        bool scheduledTask = true; // Set as true to assume there's no monster task
+        bool scheduledTask = false;
 
         // Only create for monster if task doesn't already exist
         if (newMonster) {
-            uint256 targetBlock = block.number + _cooldown(monster.stats);
-            (monster, scheduledTask) = _createCombatTask(monster, targetBlock);
+            uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
+            (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(3, monster.id, block.number, targetBlock);
+            }
         } else {
             // If task is no longer active, start a new one
-            if (!_isValidAddress(characterTasks[monster.id])) {
-                uint256 targetBlock = block.number + _cooldown(monster.stats);
-                (monster, scheduledTask) = _createCombatTask(monster, targetBlock);
+            (scheduledTask,) = _checkClearTasks(monster);
+            if (!scheduledTask) {
+                monster.owner = player.owner;
+                monster.tracker.updateOwner = true;
+                uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
+                (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
+                if (!scheduledTask) {
+                    emit Events.TaskNotScheduledInHandler(4, monster.id, block.number, targetBlock);
+                }
             }
         }
 
         if (scheduledTask) {
-            uint256 targetBlock = block.number + _cooldown(player.stats);
-            (player, scheduledTask) = _createCombatTask(player, targetBlock);
-        }
-
-        // This is being called by a non-task function, so revert if we failed to schedule the task
-        if (!scheduledTask) {
-            revert Errors.TaskNotScheduled();
+            uint256 targetBlock = block.number + _cooldown(player.stats) + COMBAT_COLD_START_DELAY_ATTACKER;
+            (player, scheduledTask) = _createOrRescheduleCombatTask(player, targetBlock);
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(5, player.id, block.number, targetBlock);
+            }
         }
 
         // Store area
@@ -196,10 +204,10 @@ abstract contract Handler is Balances {
         returns (BattleNad memory)
     {
         // Commit honorable ascenscion, return inventory balance to owner after delay;
-        player = _createAscendTask(player);
+        player = _createOrRescheduleAscendTask(player);
 
-        // Set health to 1 while ascending
-        player.stats.health = 1;
+        // Set health to 2 while ascending
+        player.stats.health = 2;
         player.tracker.updateStats = true;
         return player;
     }
@@ -226,19 +234,11 @@ abstract contract Handler is Balances {
             revert Errors.CannotAttackDueToLevelCap();
         }
 
-        // Revert if we're already attacking this target and the defender knows it.
-        if (
-            attacker.stats.nextTargetIndex == uint8(targetIndex)
-                && defender.stats.combatantBitMap & (1 << uint256(attacker.stats.index)) != 0
-        ) {
-            revert Errors.AlreadyInCombat(attacker.stats.index, defender.stats.index);
-        }
+        BattleArea memory area = _loadArea(attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
         // Log that we instigated combat
         if (_notYetInCombat(attacker, defender)) {
-            BattleArea memory area = _loadArea(attacker.stats.depth, attacker.stats.x, attacker.stats.y);
             area = _logInstigatedCombat(attacker, defender, area);
-            _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
         }
 
         if (attacker.stats.nextTargetIndex != uint8(targetIndex)) {
@@ -246,31 +246,60 @@ abstract contract Handler is Balances {
             attacker.tracker.updateStats = true;
         }
 
-        // Update monster owner / payor
-        if (defender.isMonster()) {
-            defender.owner = attacker.owner;
-            defender.tracker.updateOwner = true;
+        if (defender.stats.nextTargetIndex == 0) {
+            defender.stats.nextTargetIndex = attacker.stats.index;
+            defender.tracker.updateStats = true;
+        } else if (defender.stats.nextTargetIndex != uint8(attacker.stats.index)) {
+            bytes32 defenderTargetID =
+                areaCombatants[defender.stats.depth][defender.stats.x][defender.stats.y][defender.stats.nextTargetIndex];
+            if (!_isValidID(defenderTargetID)) {
+                defender.stats.nextTargetIndex = attacker.stats.index;
+                defender.tracker.updateStats = true;
+            }
         }
 
         // Flag for combat
         (attacker, defender) = _enterMutualCombatToTheDeath(attacker, defender);
 
         // Create tasks
-        bool scheduledTask = true; // Set as true to assume there's no monster task
-
         // Only create for attacker and defendant if tasks don't already exist
-        if (!_isValidAddress(defender.activeTask)) {
-            (defender, scheduledTask) = _createCombatTask(defender, _cooldown(defender.stats));
-        }
-
-        if (scheduledTask && !_isValidAddress(attacker.activeTask)) {
-            (attacker, scheduledTask) = _createCombatTask(attacker, _cooldown(attacker.stats));
-        }
-
-        // This is being called by a non-task function, so revert if we failed to schedule the task
+        (bool scheduledTask,) = _checkClearTasks(defender);
         if (!scheduledTask) {
-            revert Errors.TaskNotScheduled();
+            if (defender.isMonster()) {
+                defender.owner = attacker.owner;
+                defender.tracker.updateOwner = true;
+            }
+            (defender, scheduledTask) = _createOrRescheduleCombatTask(
+                defender, block.number + _cooldown(defender.stats) + COMBAT_COLD_START_DELAY_DEFENDER
+            );
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(
+                    1,
+                    defender.id,
+                    block.number,
+                    block.number + _cooldown(defender.stats) + COMBAT_COLD_START_DELAY_DEFENDER
+                );
+            }
         }
+
+        (scheduledTask,) = _checkClearTasks(attacker);
+        if (!scheduledTask) {
+            (attacker, scheduledTask) = _createOrRescheduleCombatTask(
+                attacker, block.number + _cooldown(attacker.stats) + COMBAT_COLD_START_DELAY_ATTACKER
+            );
+            // This is being called by a non-task function
+            if (!scheduledTask) {
+                emit Events.TaskNotScheduledInHandler(
+                    2,
+                    attacker.id,
+                    block.number,
+                    block.number + _cooldown(attacker.stats) + COMBAT_COLD_START_DELAY_ATTACKER
+                );
+            }
+        }
+
+        // Store area
+        _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
         // Store the defendant's data
         _storeBattleNad(defender);
@@ -339,7 +368,7 @@ abstract contract Handler is Balances {
     {
         player.inventory = inventories[player.id];
 
-        if (player.inventory.hasWeapon(armorID)) {
+        if (player.inventory.hasArmor(armorID)) {
             player.stats.armorID = armorID;
             player.tracker.updateStats = true;
         } else {
@@ -372,6 +401,8 @@ abstract contract Handler is Balances {
             revert Errors.InsufficientStatPoints(unspentAttributePoints, newPoints);
         }
 
+        player.stats.unspentAttributePoints -= uint8(newPoints);
+
         _updatePlayerLevelInArea(player, newPoints);
 
         player.stats.strength += uint8(newStrength);
@@ -391,19 +422,24 @@ abstract contract Handler is Balances {
         internal
         returns (BattleNad memory, bool reschedule, uint256 nextExecutionBlock)
     {
-        // Verify that attacker is still alive
-        if (attacker.isDead()) {
-            attacker = _processAttackerDeath(attacker);
-            // attacker = _setActiveTask(attacker, _EMPTY_ADDRESS);
-            return (attacker, false, 0);
-        }
-
         // Load area for log info
         BattleArea memory area = _loadArea(attacker);
 
+        // Verify that attacker is still alive
+        if (attacker.isDead()) {
+            uint8 depth = attacker.stats.depth;
+            uint8 x = attacker.stats.x;
+            uint8 y = attacker.stats.y;
+
+            (attacker, area) = _processDeathDuringDeceasedTurn(attacker, area);
+            // Store the area
+            _storeArea(area, depth, x, y);
+            return (attacker, false, 0);
+        }
+
         // Attempt to load a defender, exit if no defenders remain
         BattleNad memory defender;
-        (attacker, defender) = _getTargetIDAndStats(attacker, area);
+        (attacker, defender, area) = _getTargetIDAndStats(attacker, area, uint8(0));
 
         // Start a combat log
         Log memory log = _startCombatLog(attacker, defender);
@@ -411,15 +447,8 @@ abstract contract Handler is Balances {
         if (!_isValidID(defender.id)) {
             (attacker, log) = _regenerateHealth(attacker, log);
 
-            // Store the log
-            area = _storeLog(attacker, area, log);
-
-            // Store area
-            _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
-
             // CASE: No combatants remain
-            if (attacker.stats.combatants == 0) {
-                attacker = _setActiveTask(attacker, _EMPTY_ADDRESS);
+            if (!attacker.isInCombat()) {
                 reschedule = false;
                 nextExecutionBlock = 0;
 
@@ -430,21 +459,12 @@ abstract contract Handler is Balances {
                 nextExecutionBlock = block.number + 1;
             }
 
+            // Store area
+            _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
+
             // Save and return
             return (attacker, reschedule, nextExecutionBlock);
         }
-
-        // If it's a monster, update defender's owner to most recent attacker
-        /*
-        if (defender.isMonster()) {
-            defender.owner = _loadOwner(defender.id);
-            attacker.owner = _loadOwner(attacker.id);
-            if (defender.owner != attacker.owner) {
-                defender.owner = attacker.owner;
-                defender.tracker.updateOwner = true;
-            }
-        }
-        */
 
         // Load equipment
         attacker = attacker.loadEquipment();
@@ -453,51 +473,39 @@ abstract contract Handler is Balances {
         // Process attack
         (attacker, defender, log) = _attack(attacker, defender, log);
 
-        // Check if defender died and handle that case
-        if (defender.tracker.died) {
-            log.targetDied = true;
-
-            // Monsters don't earn experience or collect loot
-            if (!attacker.isMonster()) {
-                (attacker, log) = _earnExperience(attacker, defender.stats.level, defender.isMonster(), log);
-                // Only load inventory if defender died
-                attacker.inventory = inventories[attacker.id];
-                (attacker, log) = _handleLoot(attacker, defender, log);
-            }
-
-            (attacker, defender, log) = _allocateBalanceInDeath(attacker, defender, log);
-            (attacker, defender) = _disengageFromCombat(attacker, defender);
-            defender = _processDefenderDeath(defender);
-
-            // If attacker is a monster and it just killed a player and it's still in combat,
-            // change attacker's owner to another player
-            if (attacker.isMonster() && attacker.stats.combatants != 0) {
-                (attacker, defender) = _getTargetIDAndStats(attacker, area);
-                if (_isValidID(defender.id)) {
-                    attacker.owner = _loadOwner(defender.id);
-                    attacker.tracker.updateOwner = true;
-                    attacker.stats.nextTargetIndex = defender.stats.index;
+        // If it's a monster, update defender's owner to most recent attacker
+        // Only do this if there was a funding issue with prev task
+        if (defender.isMonster() && !attacker.isMonster()) {
+            defender.owner = _loadOwner(defender.id);
+            if (defender.owner != attacker.owner) {
+                (bool hasActiveCombatTask,) = _checkClearTasks(defender);
+                if (!hasActiveCombatTask) {
+                    defender.owner = attacker.owner;
+                    defender.tracker.updateOwner = true;
                 }
             }
         }
 
+        // Check if defender died and handle that case
+        if (defender.isDead()) {
+            // NOTE: This loads a NEW defender!
+            (attacker, defender, area) = _processDeathDuringKillerTurn(attacker, defender, area);
+        }
+
+        // Handle health regen and storage, then return the necessary data
+        (attacker, log) = _regenerateHealth(attacker, log);
+
         // CASE: All opponents have been defeated
-        if (attacker.stats.combatants == 0 || attacker.stats.combatantBitMap == 0) {
-            attacker.stats.sumOfCombatantLevels = 0;
-            attacker.stats.combatantBitMap = 0;
-            attacker.stats.combatants = 0;
+        if (!attacker.isInCombat()) {
+            attacker = _exitCombat(attacker);
             reschedule = false;
             nextExecutionBlock = 0;
-            attacker = _setActiveTask(attacker, _EMPTY_ADDRESS);
 
             // CASE: Defenders still exist
         } else {
             reschedule = true;
             nextExecutionBlock = block.number + _cooldown(attacker.stats);
         }
-
-        // Handle health regen and storage, then return the necessary data
-        (attacker, log) = _regenerateHealth(attacker, log);
 
         // Store the log
         area = _storeLog(attacker, area, log);
@@ -545,7 +553,7 @@ abstract contract Handler is Balances {
 
         // Schedule the task if needed
         if (reschedule) {
-            (attacker, reschedule) = _createAbilityTask(attacker, nextBlock);
+            (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, nextBlock);
             if (!reschedule) {
                 revert Errors.TaskNotRescheduled();
             }
@@ -577,14 +585,12 @@ abstract contract Handler is Balances {
                 // Return early if target cant be found
                 return (attacker, false, 0);
             }
-            defender = _loadBattleNad(defender.id);
+            defender = _loadBattleNad(defender.id, true);
 
             if (defender.isDead()) {
                 // Return early if target cant be found - process their death in regular combat task.
                 return (attacker, false, 0);
             }
-
-            defender = _addClassStatAdjustments(defender);
         }
 
         // Make sure the characters are in combat if appropriate
@@ -611,6 +617,12 @@ abstract contract Handler is Balances {
 
         // Store defender
         if (loadedDefender) {
+            if (defender.isDead()) {
+                // NOTE: Monsters cant use abilities, so attacker cant be a monster, so a null area
+                // can be used since no new target is needed.
+                BattleArea memory nullArea;
+                (attacker, defender, nullArea) = _processDeathDuringKillerTurn(attacker, defender, nullArea);
+            }
             _storeBattleNad(defender);
         }
 
@@ -655,6 +667,8 @@ abstract contract Handler is Balances {
     }
 
     function _combatCheckLoop(BattleNad memory combatant, bool forceRemoveCombat) internal returns (BattleNad memory) {
+        combatant.tracker.updateStats = true;
+
         BattleArea memory area = _loadArea(combatant.stats.depth, combatant.stats.x, combatant.stats.y);
         uint256 monsterBitmap = uint256(area.monsterBitMap);
         uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
@@ -664,89 +678,95 @@ abstract contract Handler is Balances {
 
         // Flip off this combatant's own bit
         combinedBitmap &= ~combatantBit;
+        // Avoid storage load if there's nothing in area bitmap
+        if ((combatantBitmap & combinedBitmap) != combatantBitmap) {
+            combatantBitmap &= combinedBitmap;
+        }
 
-        if (combinedBitmap == 0) {
-            combatant.stats.combatantBitMap = 0;
-            combatant.stats.nextTargetIndex = 0;
-            combatant.stats.combatants = 0;
-            combatant.stats.sumOfCombatantLevels = 0;
-            combatant.stats.health = uint16(_maxHealth(combatant.stats));
-            combatant.tracker.updateStats = true;
-            return combatant;
+        if (combatantBitmap == 0) {
+            return _exitCombat(combatant);
         }
 
         // Can't have an index of 0, start i at 1.
-        for (uint256 i = 1; i < 64; i++) {
-            if (gasleft() < 45_000) break;
+        uint256 targetIndex = uint256(combatant.stats.nextTargetIndex);
+        if (targetIndex == 0) targetIndex = 1;
 
-            uint256 indexBit = 1 << i;
+        while (gasleft() > 215_000 && combatantBitmap != 0) {
+            uint256 indexBit = 1 << targetIndex;
 
-            // Check if in combat
+            // If in combat, check if opponent exists
             if (combatantBitmap & indexBit != 0) {
-                // If in combat, check if opponent exists
-                if (combinedBitmap & indexBit != 0) {
-                    BattleNad memory opponent =
-                        _loadCombatant(combatant.stats.depth, combatant.stats.x, combatant.stats.y, i);
-                    uint256 opponentBitmap = uint256(opponent.stats.combatantBitMap);
+                BattleNad memory opponent =
+                    _loadCombatant(combatant.stats.depth, combatant.stats.x, combatant.stats.y, targetIndex);
+                uint256 opponentBitmap = uint256(opponent.stats.combatantBitMap);
+
+                // CASE: combatant didnt load
+                if (!_isValidID(opponent.id)) {
+                    combatantBitmap &= ~indexBit;
+                    area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~indexBit);
+                    area.playerBitMap = uint64(uint256(area.playerBitMap) & ~indexBit);
+                    _clearCombatantArraySlot(
+                        combatant.stats.depth, combatant.stats.x, combatant.stats.y, uint8(targetIndex)
+                    );
+                    area.update = true;
+
+                    // CASE: We're forcibly removing opponent from combat - most likely
+                    // because combatant is being forceKilled / despawned
+                } else if (forceRemoveCombat) {
+                    combatantBitmap &= ~indexBit;
+                    opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
+                    opponent.tracker.updateStats = true;
+                    _storeBattleNad(opponent);
+
+                    // CASE: Opponent is dead
+                } else if (opponent.isDead()) {
+                    combatantBitmap &= ~indexBit;
+
+                    if (_isDeadUnaware(opponent.id)) {
+                        (combatant,, area) = _processDeathDuringKillerTurn(combatant, opponent, area);
+                        combatant.tracker.updateStats = true;
+                    } else if (_isDeadUnprocessed(opponent.id)) {
+                        (opponent, area) = _processDeathDuringDeceasedTurn(opponent, area);
+                    } else {
+                        area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~indexBit);
+                        area.playerBitMap = uint64(uint256(area.playerBitMap) & ~indexBit);
+                        _clearCombatantArraySlot(
+                            combatant.stats.depth, combatant.stats.x, combatant.stats.y, uint8(targetIndex)
+                        );
+                        area.update = true;
+                    }
 
                     // CASE: Opponent isn't in combat with this player
-                    if (opponentBitmap & combatantBit == 0) {
-                        // pass (remove opponent from this char's combat bitmap)
+                } else if (opponentBitmap & combatantBit == 0) {
+                    // (remove opponent from this char's combat bitmap)
+                    combatantBitmap &= ~indexBit;
 
-                        // CASE: Opponent is dead
-                    } else if (opponent.isDead()) {
-                        // Remove this char from opponent's bitmap
-                        opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
-                        opponent.tracker.updateStats = true;
-                        _storeBattleNad(opponent);
-                        //pass (remove opponent from this char's combat bitmap)
-
-                        // CASE: Opponent doesn't have an active task going
-                    } else if (!_isValidAddress(opponent.activeTask)) {
-                        // Remove this char from opponent's bitmap
-                        opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
-                        opponent.tracker.updateStats = true;
-                        _storeBattleNad(opponent);
-                        // pass (remove opponent from this char's combat bitmap)
-
-                        // CASE: We're forcibly removing opponent from combat - most likely
-                        // because combatant is being forceKilled / despawned
-                    } else if (forceRemoveCombat) {
-                        opponent.stats.combatantBitMap = uint64(opponentBitmap & ~combatantBit);
-                        opponent.tracker.updateStats = true;
-                        _storeBattleNad(opponent);
-                        // pass (remove opponent from this char's combat bitmap)
-
-                        // CASE: Opponent is legitimately in combat with character
-                    } else {
-                        continue;
+                    // CASE: Opponent is legitimately in combat with character
+                } else {
+                    if (opponent.isMonster()) {
+                        (bool hasActiveCombatTask,) = _checkClearTasks(opponent);
+                        if (!hasActiveCombatTask && !_isTask()) {
+                            owners[opponent.id] = _abstractedMsgSender();
+                            _restartCombatTask(opponent);
+                        }
                     }
                 }
-
-                // If opponent doesn't exist, remove opponent from combat bitmap
-                combatantBitmap &= ~indexBit;
-                --combatant.stats.combatants;
-                if (!combatant.tracker.updateStats) combatant.tracker.updateStats = true;
-
-                // Remove target if it matches
-                if (uint256(combatant.stats.nextTargetIndex) == i) {
-                    combatant.stats.nextTargetIndex = 0;
-                }
-
-                // Check for early break
-                if (combatant.stats.combatants == 0) {
-                    combatant.stats.combatantBitMap = 0;
-                    combatant.stats.nextTargetIndex = 0;
-                    combatant.stats.combatants = 0;
-                    combatant.stats.sumOfCombatantLevels = 0;
-                    combatant.stats.health = uint16(_maxHealth(combatant.stats));
-                    combatant.tracker.updateStats = true;
-                    return combatant;
+            }
+            // Increment loop
+            unchecked {
+                if (++targetIndex > 64) {
+                    targetIndex = 1;
                 }
             }
+            combatant.stats.nextTargetIndex = uint8(targetIndex);
         }
 
-        combatant.stats.combatantBitMap = uint64(combatantBitmap);
+        if (combatantBitmap == 0) {
+            combatant = _exitCombat(combatant);
+        } else {
+            combatant.stats.combatantBitMap = uint64(combatantBitmap);
+        }
+        _storeArea(area, combatant.stats.depth, combatant.stats.x, combatant.stats.y);
         return combatant;
     }
 
@@ -758,12 +778,17 @@ abstract contract Handler is Balances {
     }
 
     modifier NotWhileInCombat(BattleNad memory player) {
-        if (_isValidAddress(player.activeTask)) {
-            revert Errors.CantMoveInCombat();
-        } else if (player.isInCombat()) {
-            player = _combatCheckLoop(player, false);
-            _storeBattleNad(player);
-            return;
+        {
+            (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
+            if (player.isInCombat()) {
+                player = _combatCheckLoop(player, false);
+                if (!hasCombatTask && !_isTask() && player.isInCombat()) {
+                    bool restarted;
+                    (player, restarted) = _restartCombatTask(player);
+                }
+                _storeBattleNad(player);
+                return;
+            }
         }
         _;
     }

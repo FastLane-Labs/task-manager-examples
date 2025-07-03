@@ -7,7 +7,7 @@ import { VmSafe } from "forge-std/Vm.sol";
 
 // Specific imports for this test file (if any beyond base)
 import { console } from "forge-std/console.sol"; // Re-add console import as we are not inlining anymore
-import { BattleNad, Inventory, BattleNadLite } from "src/battle-nads/Types.sol";
+import { BattleNad, BattleNadStats, Inventory, BattleNadLite } from "src/battle-nads/Types.sol";
 import { StatSheet } from "src/battle-nads/libraries/StatSheet.sol";
 import { Errors } from "src/battle-nads/libraries/Errors.sol";
 import { Constants } from "src/battle-nads/Constants.sol";
@@ -15,6 +15,7 @@ import { Equipment } from "src/battle-nads/libraries/Equipment.sol";
 
 // Renamed contract focusing on Lifecycle tests
 contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
+    using StatSheet for BattleNadStats;
 
     // Test initial state variables set during deployment
     function test_InitialState() public view {
@@ -76,7 +77,7 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
         assertTrue(Equipment.hasArmor(nad1_initial.inventory, nad1_initial.stats.armorID), "Armor not in inventory bitmap");
 
         // Assert Spawn Task Scheduled
-        assertNotEq(nad1_initial.activeTask, address(0), "Spawn task not set");
+        assertNotEq(nad1_initial.activeTask.taskAddress, address(0), "Spawn task not set");
 
         _rollForward(1); // Allow time for task execution
 
@@ -177,11 +178,11 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
             console.log("  Monster HP:", monster.stats.health);
 
             // Check for end conditions
-            if (nad3.stats.health == 0) {
+            if (nad3.stats.isDead()) {
                 console.log("PLAYER DIED");
                 break;
             }
-            if (monster.stats.health == 0) {
+            if (monster.stats.isDead()) {
                 console.log("MONSTER DIED");
                 break;
             }
@@ -303,7 +304,7 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
         assertEq(nad_before.stats.depth, 0, "Initial depth should be 0");
         assertEq(nad_before.stats.x, 0, "Initial x should be 0");
         assertEq(nad_before.stats.y, 0, "Initial y should be 0");
-        assertNotEq(nad_before.activeTask, address(0), "Initial activeTask should be set");
+        assertNotEq(nad_before.activeTask.taskAddress, address(0), "Initial activeTask should be set");
 
         // Wait for spawn 
         BattleNad memory nad_after = _waitForSpawn(charId); 
@@ -313,7 +314,7 @@ contract BattleNadsLifecycleTest is BattleNadsBaseTest, Constants {
         assertTrue(nad_after.stats.x != 0, "Spawned x should not be 0");
         assertTrue(nad_after.stats.y != 0, "Spawned y should not be 0");
         assertTrue(nad_after.stats.index < 64 && nad_after.stats.index > 0, "Spawned index invalid"); 
-        assertTrue(nad_after.activeTask == address(0) || nad_after.activeTask == address(1), "activeTask should be cleared after spawn");
+        assertTrue(nad_after.activeTask.taskAddress == address(0) || nad_after.activeTask.taskAddress == address(1), "activeTask should be cleared after spawn");
     }
 
     function test_AllocatePoints_Success() public {

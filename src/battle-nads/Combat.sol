@@ -57,8 +57,10 @@ abstract contract Combat is MonsterFactory {
         if (attackerBitmap & defenderBit != 0) {
             attackerBitmap &= ~defenderBit;
             attacker.stats.combatantBitMap = uint64(attackerBitmap);
-            --attacker.stats.combatants;
-            // NOTE: To prevent chaining, we only decrement sumOfCombatantLevels when combat is over
+            if (!attacker.isInCombat()) {
+                attacker = _exitCombat(attacker);
+            }
+            // NOTE: To prevent chaining, we only decrement combatants and sumOfCombatantLevels when combat is over
             if (!attacker.tracker.updateStats) attacker.tracker.updateStats = true;
         }
 
@@ -71,8 +73,10 @@ abstract contract Combat is MonsterFactory {
         if (defenderBitmap & attackerBit != 0) {
             defenderBitmap &= ~attackerBit;
             defender.stats.combatantBitMap = uint64(defenderBitmap);
-            --defender.stats.combatants;
-            // NOTE: To prevent chaining, we only decrement sumOfCombatantLevels when combat is over
+            if (!defender.isInCombat()) {
+                defender = _exitCombat(defender);
+            }
+            // NOTE: To prevent chaining, we only decrement combatants and sumOfCombatantLevels when combat is over
             if (!defender.tracker.updateStats) defender.tracker.updateStats = true;
         }
 
@@ -91,6 +95,13 @@ abstract contract Combat is MonsterFactory {
         pure
         returns (BattleNad memory, BattleNad memory)
     {
+        if (!beatrice.isInCombat()) {
+            beatrice = _exitCombat(beatrice);
+        }
+        if (!sally.isInCombat()) {
+            sally = _exitCombat(sally);
+        }
+
         uint256 beatriceBitmap = uint256(beatrice.stats.combatantBitMap);
         uint256 sallyBit = 1 << uint256(sally.stats.index);
         if (beatriceBitmap & sallyBit == 0) {
@@ -143,135 +154,121 @@ abstract contract Combat is MonsterFactory {
 
     function _getTargetIDAndStats(
         BattleNad memory attacker,
-        BattleArea memory area
+        BattleArea memory area,
+        uint8 excludedIndex
     )
         internal
-        view
-        returns (BattleNad memory, BattleNad memory defender)
+        returns (BattleNad memory, BattleNad memory defender, BattleArea memory)
     {
-        // Sanity-check the bitmap
-        uint256 targetBitmap = uint256(attacker.stats.combatantBitMap);
-        if (targetBitmap == 0) {
-            return (attacker, defender);
-        }
+        attacker.tracker.updateStats = true;
 
         // Declare variables
+        uint256 combatantBitmap = uint256(attacker.stats.combatantBitMap);
         uint256 attackerIndex = uint256(attacker.stats.index);
         uint256 targetIndex;
         uint256 targetBit;
 
-        // Sanity check agaist area bitmap
+        // Sanity check against area bitmap
         uint256 areaBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
-        areaBitmap &= ~(1 << attackerIndex);
 
-        // See if attacker has selected a specific target
-        if (attacker.stats.nextTargetIndex != 0) {
-            targetIndex = uint256(attacker.stats.nextTargetIndex);
-            targetBit = 1 << targetIndex;
-            if (targetBitmap & targetBit != 0) {
-                // Avoid storage load if there's nothing in area bitmap
-                if (areaBitmap & targetBit != 0) {
-                    bytes32 defenderID =
-                        areaCombatants[attacker.stats.depth][attacker.stats.x][attacker.stats.y][targetIndex];
-                    if (_isValidID(defenderID)) {
-                        // Load the defender and make sure defender is in combat with attacker and not a new player
-                        // in that slot.
-                        defender = _loadBattleNad(defenderID, true);
-                        if (!defender.isDead()) {
-                            uint256 defenderBitmap = uint256(defender.stats.combatantBitMap);
+        // Avoid storage load if there's nothing in area bitmap
+        combatantBitmap &= areaBitmap;
 
-                            // Check if defender has attacker in combat
-                            // NOTE: If the defender dies their combatant bitmap is zero'd out
-                            if (defenderBitmap & (1 << attackerIndex) != 0) {
-                                return (attacker, defender);
-                            }
-                        }
-
-                        // Clear out defender memory struct if it isn't a match
-                        defender.id = bytes32(0);
-                        BattleNadStats memory nullStats;
-                        defender.stats = nullStats;
-                    }
-                }
-
-                // Defender doesn't have attacker flagged as as an attacker, which means it's a new defender
-                // in that location, so clear that slot on the target bitmap and decrement combatants.
-                targetBitmap &= ~targetBit;
-                // TODO: Analyze below
-                // --attacker.stats.combatants;
-            }
-            // If defenderID is no longer in combat
-            attacker.stats.nextTargetIndex = 0;
-            attacker.tracker.updateStats = true;
+        // Monsters can attack any player once they're aggro'd but not each other
+        if (attacker.isMonster()) {
+            combatantBitmap |= uint256(area.playerBitMap);
+            combatantBitmap &= ~uint256(area.monsterBitMap);
+        }
+        // Remove any excluded index
+        if (excludedIndex != 0) {
+            combatantBitmap &= ~(1 << excludedIndex);
         }
 
-        // Random target selection for in-combat targets
-        // bytes32 randomSeed = keccak256(abi.encode(_TARGET_SEED, block.number, attacker.id, blockhash(block.number -
-        // 1)));
-        // targetIndex = (uint256(0xff) & uint256(uint8(uint256(randomSeed >> 8)))) / 2;
-        targetIndex = attacker.stats.index;
+        if (combatantBitmap == 0) {
+            return (_exitCombat(attacker), defender, area);
+        }
+
+        BattleNadStats memory nullStats;
+        targetIndex = uint256(attacker.stats.nextTargetIndex);
+        if (targetIndex == 0) targetIndex = 1;
 
         do {
-            // Increment loop
-            unchecked {
-                if (++targetIndex > 63) {
-                    targetIndex = 1;
-                }
-            }
-
             targetBit = 1 << targetIndex;
 
             // Check if this index is a match
             // TODO: Add skipping mechanism
-            if (targetBitmap & targetBit != 0) {
-                // Avoid storage load if there's nothing in area bitmap
-                if (areaBitmap & targetBit != 0) {
-                    bytes32 defenderID =
-                        areaCombatants[attacker.stats.depth][attacker.stats.x][attacker.stats.y][targetIndex];
-                    if (_isValidID(defenderID)) {
-                        // Load the defender and make sure defender is in combat with attacker and not a new player
-                        // in that slot.
-                        defender = _loadBattleNad(defenderID, true);
+            if (combatantBitmap & targetBit != 0) {
+                // Load the defender and make sure defender is in combat with attacker and not a new player
+                // in that slot.
+                defender = _loadCombatant(attacker.stats.depth, attacker.stats.x, attacker.stats.y, targetIndex);
 
-                        if (!defender.isDead()) {
-                            uint256 defenderBitmap = uint256(defender.stats.combatantBitMap);
+                // CASE: defender didnt load
+                if (!_isValidID(defender.id)) {
+                    area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~targetBit);
+                    area.playerBitMap = uint64(uint256(area.playerBitMap) & ~targetBit);
+                    _clearCombatantArraySlot(
+                        attacker.stats.depth, attacker.stats.x, attacker.stats.y, uint8(targetIndex)
+                    );
+                    area.update = true;
+                    // Remove from combat
 
-                            // Break if match is valid
-                            if (defenderBitmap & (1 << attackerIndex) != 0) {
-                                if (attacker.tracker.updateStats) {
-                                    attacker.stats.combatantBitMap = uint64(targetBitmap);
-                                }
-                                return (attacker, defender);
-                            }
-                        }
-
-                        // Clear out defender memory struct if it isn't a match
-                        defender.id = bytes32(0);
-                        BattleNadStats memory nullStats;
-                        defender.stats = nullStats;
+                    // CASE: defender died
+                } else if (defender.isDead()) {
+                    // Remove from combat
+                    if (_isDeadUnaware(defender.id)) {
+                        (attacker,, area) = _processDeathDuringKillerTurn(attacker, defender, area);
+                        attacker.tracker.updateStats = true;
+                    } else if (killMap[defender.id] == attacker.id) {
+                        // Not my proudest few lines of code but we're all human and this is a side
+                        // project and it's 3am and doing it efficiently would take a long time x.x
+                        combatantBitmap &= ~targetBit;
+                        attacker.stats.combatantBitMap = uint64(combatantBitmap);
+                        _storeBattleNad(attacker);
+                        (defender, area) = _processDeathDuringDeceasedTurn(defender, area);
+                        attacker = _loadBattleNad(attacker.id, true);
+                        attacker.tracker.updateStats = true;
+                        defender.id = _NULL_ID;
+                        // return early bc we probably dont have much gas left
+                        return (attacker, defender, area);
+                    } else if (!_isDeadUnprocessed(defender.id)) {
+                        area.monsterBitMap = uint64(uint256(area.monsterBitMap) & ~targetBit);
+                        area.playerBitMap = uint64(uint256(area.playerBitMap) & ~targetBit);
+                        _clearCombatantArraySlot(
+                            attacker.stats.depth, attacker.stats.x, attacker.stats.y, uint8(targetIndex)
+                        );
+                        area.update = true;
                     }
+
+                    // CASE: defender not in combat with attacker
+                } else if (uint256(defender.stats.combatantBitMap) & (1 << attackerIndex) == 0) {
+                    // Remove from combat
+
+                    // CASE: valid target
+                } else {
+                    attacker.stats.combatantBitMap = uint64(combatantBitmap);
+                    return (attacker, defender, area);
                 }
 
-                // Defender doesn't have attacker flagged as an attacker, which means it's a new defender
-                // in that location, so clear that slot on the target bitmap.
-                targetBitmap &= ~targetBit;
-                // --attacker.stats.combatants;
-                if (!attacker.tracker.updateStats) attacker.tracker.updateStats = true;
+                // Remove from bitmap and clear out defender memory struct if it isn't a match
+                combatantBitmap &= ~targetBit;
+                defender.id = bytes32(0);
+                defender.stats = nullStats;
             }
-        } while (targetBitmap != 0);
+            // Increment loop
+            unchecked {
+                if (++targetIndex > 64) {
+                    targetIndex = 1;
+                }
+            }
+            attacker.stats.nextTargetIndex = uint8(targetIndex);
+        } while (combatantBitmap != 0 && gasleft() > 110_000);
 
-        if (attacker.tracker.updateStats) {
-            if (targetBitmap == 0) {
-                attacker.stats.combatants = 0;
-                attacker.stats.sumOfCombatantLevels = 0;
-                attacker.stats.nextTargetIndex = 0;
-                attacker.stats.combatantBitMap = uint64(0);
-            } else {
-                attacker.stats.combatantBitMap = uint64(targetBitmap);
-            }
+        if (combatantBitmap == 0) {
+            attacker = _exitCombat(attacker);
+        } else {
+            attacker.stats.combatantBitMap = uint64(combatantBitmap);
         }
-
-        return (attacker, defender);
+        return (attacker, defender, area);
     }
 
     function _regenerateHealth(
@@ -286,9 +283,8 @@ abstract contract Combat is MonsterFactory {
             combatant.tracker.updateStats = true;
         }
 
-        // Apply class adjustments if not already done
-        if (combatant.maxHealth == 0) {
-            combatant = _addClassStatAdjustments(combatant);
+        if (combatant.isDead()) {
+            return (combatant, log);
         }
 
         // Get max health
@@ -301,7 +297,7 @@ abstract contract Combat is MonsterFactory {
         }
 
         // If not in combat, regenerate to max health
-        if (combatant.stats.combatants == 0) {
+        if (!combatant.isInCombat()) {
             uint256 recovered = maxHealth > currentHealth ? maxHealth - currentHealth : 0;
             log.healthHealed = uint16(recovered);
 
@@ -314,30 +310,27 @@ abstract contract Combat is MonsterFactory {
         // Health regen has to be normalized for the default cooldown to prevent quickness points from
         // giving extreme health regeneration benefits
         uint256 targetHealthRegeneration = uint256(combatant.stats.vitality) * VITALITY_REGEN_MODIFIER;
-        uint256 cooldown = _cooldown(combatant.stats);
 
         if (combatant.isMonster()) {
             targetHealthRegeneration /= 2;
         }
 
-        uint256 adjustedHealthRegeneration = targetHealthRegeneration * cooldown / DEFAULT_TURN_TIME;
-
         if (combatant.stats.class == CharacterClass.Monk) {
-            adjustedHealthRegeneration += (uint256(combatant.stats.level) * 2 + 10);
+            targetHealthRegeneration += (uint256(combatant.stats.level) * 2 + 10);
         } else if (combatant.stats.class == CharacterClass.Bard) {
-            adjustedHealthRegeneration = 1;
+            targetHealthRegeneration = 1;
         }
 
         if (combatant.isPraying()) {
-            adjustedHealthRegeneration *= 2;
+            targetHealthRegeneration *= 2;
         } else if (combatant.isPoisoned()) {
-            adjustedHealthRegeneration /= 4;
+            targetHealthRegeneration /= 4;
         } else if (combatant.isCursed()) {
-            adjustedHealthRegeneration = 0;
+            targetHealthRegeneration = 0;
         }
 
         // Cannot regenerate above max
-        if (currentHealth + adjustedHealthRegeneration > maxHealth) {
+        if (currentHealth + targetHealthRegeneration > maxHealth) {
             uint256 recovered = maxHealth > currentHealth ? maxHealth - currentHealth : 0;
 
             log.healthHealed = uint16(recovered);
@@ -349,17 +342,107 @@ abstract contract Combat is MonsterFactory {
             combatant.stats.health = uint16(currentHealth);
         } else {
             emit Events.CombatHealthRecovered(
-                combatant.areaID(), combatant.id, adjustedHealthRegeneration, currentHealth + adjustedHealthRegeneration
+                combatant.areaID(), combatant.id, targetHealthRegeneration, currentHealth + targetHealthRegeneration
             );
 
-            log.healthHealed = uint16(adjustedHealthRegeneration);
+            log.healthHealed = uint16(targetHealthRegeneration);
 
-            currentHealth += adjustedHealthRegeneration;
+            currentHealth += targetHealthRegeneration;
 
             combatant.stats.health = uint16(currentHealth);
         }
 
         return (combatant, log);
+    }
+
+    function _processDeathDuringKillerTurn(
+        BattleNad memory attacker,
+        BattleNad memory defender,
+        BattleArea memory area
+    )
+        internal
+        returns (BattleNad memory, BattleNad memory newDefender, BattleArea memory)
+    {
+        require(defender.isDead(), "ERR-DefenderAliveCantProcess");
+        (attacker, defender) = _disengageFromCombat(attacker, defender);
+
+        _setKiller(defender.id, attacker.id);
+        _storeBattleNad(_exitCombat(defender));
+
+        emit Events.PlayerDied(defender.areaID(), defender.id);
+
+        // If attacker is a monster and it just killed a player and it's still in combat,
+        // change attacker's owner to another player
+        if (attacker.isMonster()) {
+            (attacker, newDefender, area) = _getTargetIDAndStats(attacker, area, defender.stats.index);
+            if (_isValidID(newDefender.id)) {
+                attacker.stats.nextTargetIndex = newDefender.stats.index;
+                (attacker, newDefender) = _enterMutualCombatToTheDeath(attacker, newDefender);
+            }
+        }
+        return (attacker, newDefender, area);
+    }
+
+    function _processDeathDuringDeceasedTurn(
+        BattleNad memory deceased,
+        BattleArea memory area
+    )
+        internal
+        returns (BattleNad memory, BattleArea memory)
+    {
+        // Load the killer's data
+        (bytes32 killerID, bool valid) = _getKiller(deceased.id);
+
+        if (valid) {
+            BattleNad memory victor;
+            if (killerID == _SYSTEM_KILLER) {
+                victor.id = _SYSTEM_KILLER;
+                victor.stats.class = CharacterClass.Boss;
+                victor.stats.health = 2;
+                victor.stats.level = deceased.stats.level;
+                victor.stats.combatantBitMap = uint64(1 << deceased.stats.index);
+                victor.stats.combatants = 1;
+                victor.stats.sumOfCombatantLevels = deceased.stats.level;
+                victor.maxHealth = 3;
+            } else {
+                victor = _loadBattleNad(killerID, false);
+            }
+
+            Log memory log = _startCombatLog(victor, deceased);
+            log.targetDied = true;
+
+            // Monsters don't earn experience or collect loot
+            if (!victor.isMonster()) {
+                (victor, log) = _earnExperience(victor, deceased.stats.level, deceased.isMonster(), log);
+                victor.inventory = inventories[victor.id];
+                (victor, log) = _handleLoot(victor, deceased, log);
+            }
+
+            (victor, deceased, log) = _allocateBalanceInDeath(victor, deceased, log);
+
+            valid = _finalizeKiller(deceased.id, killerID);
+
+            if (valid && killerID != _SYSTEM_KILLER) {
+                // Store victor and log
+                area = _storeLog(victor, area, log);
+                _storeBattleNad(victor);
+            }
+        }
+
+        // Remove combatant from location
+        (deceased, area) = _leaveLocation(deceased, area);
+
+        // Miscellaneous tracking
+        deceased.stats.index = 0;
+        deceased.stats.depth = 0;
+        deceased.stats.x = 0;
+        deceased.stats.y = 0;
+
+        deceased.tracker.updateStats = false;
+
+        _deleteBattleNad(deceased);
+
+        return (deceased, area);
     }
 
     function _attack(
@@ -580,14 +663,20 @@ abstract contract Combat is MonsterFactory {
         if (rawDamage > type(uint16).max) rawDamage = type(uint16).max;
 
         if (attacker.isMonster()) {
-            rawDamage = rawDamage * 2 / 3;
+            if (attacker.stats.class == CharacterClass.Boss) {
+                rawDamage = rawDamage * 4 / 3;
+            } else if (attacker.stats.class == CharacterClass.Elite) {
+                rawDamage = rawDamage * 9 / 10;
+            } else {
+                rawDamage = rawDamage * 3 / 4;
+            }
         }
 
-        return uint16(rawDamage);
+        return uint16(rawDamage * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE);
     }
 
     function _handleLoot(
-        BattleNad memory self,
+        BattleNad memory winner,
         BattleNad memory vanquished,
         Log memory log
     )
@@ -596,24 +685,35 @@ abstract contract Combat is MonsterFactory {
     {
         // NOTE: Players and monsters only drop their equipped items
         uint256 vanquishedWeaponBit = 1 << uint256(vanquished.stats.weaponID);
-        uint256 weaponBitmap = uint256(self.inventory.weaponBitmap);
+        uint256 weaponBitmap = uint256(winner.inventory.weaponBitmap);
         if (weaponBitmap & vanquishedWeaponBit == 0) {
-            emit Events.LootedNewWeapon(self.areaID(), self.id, vanquished.stats.weaponID, vanquished.weapon.name);
+            emit Events.LootedNewWeapon(winner.areaID(), winner.id, vanquished.stats.weaponID, vanquished.weapon.name);
             weaponBitmap |= vanquishedWeaponBit;
-            self.inventory.weaponBitmap = uint64(weaponBitmap);
-            self.tracker.updateInventory = true;
+            winner.inventory.weaponBitmap = uint64(weaponBitmap);
+            winner.tracker.updateInventory = true;
             log.lootedWeaponID = vanquished.stats.weaponID;
         }
 
         uint256 vanquishedArmorBit = 1 << uint256(vanquished.stats.armorID);
-        uint256 armorBitmap = uint256(self.inventory.armorBitmap);
+        uint256 armorBitmap = uint256(winner.inventory.armorBitmap);
         if (armorBitmap & vanquishedArmorBit == 0) {
-            emit Events.LootedNewArmor(self.areaID(), self.id, vanquished.stats.armorID, vanquished.armor.name);
+            emit Events.LootedNewArmor(winner.areaID(), winner.id, vanquished.stats.armorID, vanquished.armor.name);
             armorBitmap |= vanquishedArmorBit;
-            self.inventory.armorBitmap = uint64(armorBitmap);
-            self.tracker.updateInventory = true;
+            winner.inventory.armorBitmap = uint64(armorBitmap);
+            winner.tracker.updateInventory = true;
             log.lootedArmorID = vanquished.stats.armorID;
         }
-        return (self, log);
+        return (winner, log);
     }
+
+    function _loadCombatant(
+        uint8 depth,
+        uint8 x,
+        uint8 y,
+        uint256 index
+    )
+        internal
+        view
+        virtual
+        returns (BattleNad memory combatant);
 }

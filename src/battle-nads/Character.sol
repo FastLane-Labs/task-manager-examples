@@ -15,29 +15,28 @@ abstract contract Character is Abilities {
     using Equipment for Inventory;
     using StatSheet for BattleNad;
 
-    function _cooldown(BattleNadStats memory stats) internal pure returns (uint256 cooldown) {
+    function _cooldown(BattleNadStats memory stats) internal view returns (uint256 cooldown) {
         uint256 quickness = uint256(stats.quickness) + 1;
-        uint256 baseline = QUICKNESS_BASELINE;
-        cooldown = DEFAULT_TURN_TIME;
-        do {
-            if (cooldown < 3) {
-                break;
-            }
-            if (quickness < baseline) {
-                if (quickness + uint256(stats.luck) > baseline) {
-                    --cooldown;
-                }
-                break;
-            }
-            --cooldown;
-            baseline = baseline * 3 / 2 + 1;
-        } while (cooldown > MIN_TURN_TIME);
+        uint256 luck = uint256(stats.luck);
 
-        if (
-            stats.class == CharacterClass.Basic || stats.class == CharacterClass.Elite
-                || stats.class == CharacterClass.Boss
-        ) {
-            ++cooldown;
+        bytes32 randomSeed =
+            keccak256(abi.encode(_COOLDOWN_SEED, block.number, quickness / 2, blockhash(block.number - 1)));
+
+        uint256 cooldownRoll = uint256(0xff) & uint256(randomSeed >> 120);
+
+        // Scale up the seed with level to prevent power creep
+        cooldownRoll = (cooldownRoll / 2) + uint256(stats.level);
+
+        cooldown = DEFAULT_TURN_TIME;
+
+        if (quickness * QUICKNESS_BASELINE + luck > cooldownRoll) {
+            --cooldown;
+        } else if (cooldownRoll - uint256(stats.level) < luck) {
+            --cooldown;
+        }
+
+        if (quickness * 2 + uint256(stats.dexterity) + luck > cooldownRoll - uint256(stats.level)) {
+            --cooldown;
         }
 
         return cooldown;
@@ -199,7 +198,7 @@ abstract contract Character is Abilities {
         uint256 combatantIndex = uint256(newIndex);
         bytes32 combatantID = areaCombatants[newDepth][newX][newY][combatantIndex];
 
-        if (combatantID == bytes32(0)) {
+        if (!_isValidID(combatantID)) {
             areaCombatants[newDepth][newX][newY][combatantIndex] = combatant.id;
         } else {
             revert Errors.InvalidLocationIndex(combatantID);
@@ -213,9 +212,13 @@ abstract contract Character is Abilities {
         return (combatant, area);
     }
 
-    function _leaveLocation(BattleNad memory combatant) internal {
-        BattleArea memory area = _loadArea(combatant.stats.depth, combatant.stats.x, combatant.stats.y);
-
+    function _leaveLocation(
+        BattleNad memory combatant,
+        BattleArea memory area
+    )
+        internal
+        returns (BattleNad memory, BattleArea memory)
+    {
         if (combatant.isMonster()) {
             area.sumOfMonsterLevels -= uint16(combatant.stats.level);
             --area.monsterCount;
@@ -239,19 +242,26 @@ abstract contract Character is Abilities {
         }
         area.update = true;
 
+        // Update the combatant array
+        _clearCombatantArraySlot(combatant.stats.depth, combatant.stats.x, combatant.stats.y, combatant.stats.index);
+
+        return (combatant, area);
+    }
+
+    function _leaveLocation(BattleNad memory combatant) internal {
+        // Load the area
+        BattleArea memory area = _loadArea(combatant.stats.depth, combatant.stats.x, combatant.stats.y);
+
+        (combatant, area) = _leaveLocation(combatant, area);
+
         // Store the area
         _storeArea(area, combatant.stats.depth, combatant.stats.x, combatant.stats.y);
 
-        // Update the combatant array
-        uint256 combatantIndex = uint256(combatant.stats.index);
-        bytes32 combatantID =
-            areaCombatants[combatant.stats.depth][combatant.stats.x][combatant.stats.y][combatantIndex];
-
-        if (combatantID == combatant.id) {
-            areaCombatants[combatant.stats.depth][combatant.stats.x][combatant.stats.y][combatantIndex] = _NULL_ID;
-        }
-
         emit Events.CharacterLeftArea(combatant.areaID(), combatant.id);
+    }
+
+    function _clearCombatantArraySlot(uint8 depth, uint8 x, uint8 y, uint8 combatantIndex) internal {
+        areaCombatants[depth][x][y][uint256(combatantIndex)] = _NULL_ID;
     }
 
     function _updateLocation(
@@ -274,59 +284,27 @@ abstract contract Character is Abilities {
         return combatant;
     }
 
-    function _processAttackerDeath(BattleNad memory attacker) internal returns (BattleNad memory) {
-        // Store dead character stats for scoreboard
-        // _storeDeadBattleNadStats(attacker.stats, attacker.id);
-
-        // Remove combatant from location
-        _leaveLocation(attacker);
-
-        // Miscellaneous tracking
-        attacker.stats.index = 0;
-        attacker.stats.depth = 0;
-        attacker.stats.x = 0;
-        attacker.stats.y = 0;
-
-        if (attacker.tracker.updateStats) attacker.tracker.updateStats = false;
-
-        _deleteBattleNad(attacker);
-
-        return attacker;
-    }
-
-    function _processDefenderDeath(BattleNad memory defender) internal returns (BattleNad memory) {
-        // Location handled when it's defender's turn to attack prevent race condition
-
-        // Combat Stats
-        defender.stats.health = 0;
-        defender.stats.sumOfCombatantLevels = 0;
-        defender.stats.combatants = 0;
-        defender.stats.nextTargetIndex = 0;
-        defender.stats.combatantBitMap = uint64(0);
-
-        if (!defender.tracker.updateStats) defender.tracker.updateStats = true;
-
-        emit Events.PlayerDied(defender.areaID(), defender.id);
-
-        return defender;
-    }
-
-    function _setActiveTask(
-        BattleNad memory combatant,
-        address newTaskAddress
-    )
-        internal
-        pure
-        returns (BattleNad memory)
-    {
-        if (newTaskAddress != combatant.activeTask) {
-            combatant.activeTask = newTaskAddress;
-            combatant.tracker.updateActiveTask = true;
+    function _exitCombat(BattleNad memory combatant) internal pure override returns (BattleNad memory) {
+        if (combatant.maxHealth == 0) {
+            combatant.maxHealth = _maxHealth(combatant.stats);
+        }
+        if (
+            combatant.stats.combatantBitMap != 0 || uint256(combatant.stats.health) != combatant.maxHealth
+                || combatant.stats.combatants != 0 || combatant.stats.sumOfCombatantLevels != 0
+        ) {
+            combatant.tracker.updateStats = true;
+        }
+        combatant.stats.combatants = 0;
+        combatant.stats.sumOfCombatantLevels = 0;
+        combatant.stats.nextTargetIndex = 0;
+        combatant.stats.combatantBitMap = uint64(0);
+        if (!combatant.isDead()) {
+            combatant.stats.health = uint16(combatant.maxHealth);
         }
         return combatant;
     }
 
-    function _createSpawnTask(
+    function _createOrRescheduleSpawnTask(
         BattleNad memory combatant,
         uint256 targetBlock
     )
@@ -334,7 +312,7 @@ abstract contract Character is Abilities {
         virtual
         returns (BattleNad memory, bool success);
 
-    function _createCombatTask(
+    function _createOrRescheduleCombatTask(
         BattleNad memory combatant,
         uint256 targetBlock
     )
@@ -342,7 +320,7 @@ abstract contract Character is Abilities {
         virtual
         returns (BattleNad memory, bool success);
 
-    function _createAbilityTask(
+    function _createOrRescheduleAbilityTask(
         BattleNad memory combatant,
         uint256 targetBlock
     )
@@ -350,7 +328,14 @@ abstract contract Character is Abilities {
         virtual
         returns (BattleNad memory, bool success);
 
-    function _createAscendTask(BattleNad memory player) internal virtual returns (BattleNad memory);
+    function _createOrRescheduleAscendTask(BattleNad memory player) internal virtual returns (BattleNad memory);
+
+    function _checkClearTasks(BattleNad memory combatant)
+        internal
+        virtual
+        returns (bool hasActiveCombatTask, address activeTask);
+
+    function _restartCombatTask(BattleNad memory combatant) internal virtual returns (BattleNad memory, bool);
 
     function _allocateBalanceInDeath(
         BattleNad memory victor,

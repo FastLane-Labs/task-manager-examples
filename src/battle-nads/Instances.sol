@@ -20,13 +20,13 @@ abstract contract Instances is Combat {
     )
         internal
         view
+        override
         returns (BattleNad memory combatant)
     {
         bytes32 combatantID = areaCombatants[depth][x][y][index];
-        if (!_isValidID(combatantID)) {
-            revert Errors.InvalidTargetIndex(index);
+        if (_isValidID(combatantID)) {
+            combatant = _loadBattleNad(combatantID, true);
         }
-        combatant = _loadBattleNad(combatantID);
     }
 
     function _checkForAggro(
@@ -56,6 +56,13 @@ abstract contract Instances is Combat {
 
         if (!isBossEncounter) {
             aggroRange -= uint256(player.stats.level);
+
+            if (player.stats.depth < player.stats.level) {
+                aggroRange /= 2;
+            } else if (player.stats.depth > player.stats.level) {
+                aggroRange += uint256(player.stats.depth) - uint256(player.stats.level);
+            }
+
             if (aggroRange > MAX_AGGRO_RANGE) aggroRange = MAX_AGGRO_RANGE;
         }
 
@@ -83,7 +90,7 @@ abstract contract Instances is Combat {
                 // Make sure we aren't spawning too many mobs
             } else if (canSpawnNewMonsters) {
                 uint256 aggroThreshold = DEFAULT_AGGRO_CHANCE + (aggroRange / 2);
-                uint256 aggroRoll = uint256(0xff) & uint256(uint8(uint256(randomSeed >> (aggroRange * 8)))) / 2;
+                uint256 aggroRoll = (uint256(0xff) & uint256(uint8(uint256(randomSeed >> (aggroRange * 8))))) / 2;
                 if (aggroRoll < aggroThreshold) {
                     return (uint8(index), true);
                 }
@@ -259,6 +266,57 @@ abstract contract Instances is Combat {
             // If area is too full, randomly choose another area and increase the acceptable threshold
             unchecked {
                 ++threshold;
+            }
+        } while (gasleft() > 120_000 && threshold < maxOccupants);
+
+        // Return if empty
+        BattleArea memory nullArea;
+        x = 0;
+        y = 0;
+        return (nullArea, x, y);
+    }
+
+    // Can only go deeper into the dungeon at certain coordinates for each level
+    function _unrandomSpawnCoordinates(BattleNad memory player)
+        internal
+        view
+        returns (BattleArea memory area, uint8 x, uint8 y)
+    {
+        // Define variables
+        uint256 threshold = STARTING_OCCUPANT_THRESHOLD;
+        uint256 maxOccupants = MAX_COMBATANTS_PER_AREA - 1;
+        uint256 i;
+        uint256 baseX = 26;
+        uint256 baseY = 26;
+        do {
+            // Generate X and Y
+            if (i % 4 == 0) {
+                baseX = baseY;
+            } else if (i % 4 == 1) {
+                ++baseX;
+            } else if (i % 4 == 2) {
+                ++baseY;
+            } else if (i % 4 == 3) {
+                --baseX;
+            }
+
+            x = uint8(baseX);
+            y = uint8(baseY);
+
+            // Load area
+            unchecked {
+                area = _loadArea(1, x, y);
+            }
+
+            // Get number of current occupants
+            if (uint256(area.playerCount) + uint256(area.monsterCount) < threshold) {
+                return (area, x, y);
+            }
+
+            // If area is too full, randomly choose another area and increase the acceptable threshold
+            unchecked {
+                ++threshold;
+                ++i;
             }
         } while (gasleft() > 120_000 && threshold < maxOccupants);
 

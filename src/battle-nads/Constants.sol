@@ -16,24 +16,27 @@ contract Constants {
     uint256 internal constant STARTING_STAT_SUM = StatSheet.STARTING_STAT_SUM; // 32
     uint8 internal constant MIN_STAT_VALUE = 3;
     uint256 internal constant MAX_STAT_VALUE = 100;
-    uint256 internal constant SPAWN_DELAY = 8;
+    uint256 internal constant SPAWN_DELAY = 3;
 
     uint8 internal constant MAX_WEAPON_ID = 64;
     uint8 internal constant MAX_ARMOR_ID = 64;
 
-    uint256 internal constant HEALTH_BASE = 1000;
+    uint256 internal constant HEALTH_BASE = 1200;
     uint256 internal constant LEVEL_HEALTH_MODIFIER = 50;
     uint256 internal constant VITALITY_HEALTH_MODIFIER = 100;
     uint256 internal constant VITALITY_REGEN_MODIFIER = 5;
     uint256 internal constant STURDINESS_HEALTH_MODIFIER = 20;
 
-    uint256 internal constant MONSTER_HEALTH_BASE = 500;
-    uint256 internal constant MONSTER_VITALITY_HEALTH_MODIFIER = 40;
-    uint256 internal constant MONSTER_STURDINESS_HEALTH_MODIFIER = 40;
+    uint256 internal constant MONSTER_HEALTH_BASE = 900;
+    uint256 internal constant MONSTER_VITALITY_HEALTH_MODIFIER = 45;
+    uint256 internal constant MONSTER_STURDINESS_HEALTH_MODIFIER = 45;
 
-    uint256 internal constant DEFAULT_TURN_TIME = 8;
-    uint256 internal constant MIN_TURN_TIME = 3;
-    uint256 internal constant QUICKNESS_BASELINE = 4;
+    uint256 internal constant DEFAULT_TURN_TIME = 4;
+    uint256 internal constant MIN_TURN_TIME = 2;
+    uint256 internal constant QUICKNESS_BASELINE = 6;
+    uint256 internal constant COMBAT_COLD_START_DELAY_ATTACKER = 3;
+    uint256 internal constant COMBAT_COLD_START_DELAY_DEFENDER = 3;
+    uint256 internal constant COMBAT_COLD_START_DELAY_MONSTER = 2;
 
     uint256 internal constant BASE_FLEXIBILITY = 16;
     uint256 internal constant BASE_ACCURACY = 32;
@@ -60,9 +63,12 @@ contract Constants {
     uint256 internal constant MAX_COMBATANTS_PER_AREA = 63; // 0 must stay empty
     uint256 internal constant MAX_MONSTERS_PER_AREA = 32;
     uint256 internal constant DEFAULT_AGGRO_RANGE = 10; // for existing monsters
-    uint256 internal constant MAX_AGGRO_RANGE = 26; // for existing monsters
-    uint256 internal constant DEFAULT_AGGRO_CHANCE = 26; // out of 128 - spawns a new monster
+    uint256 internal constant MAX_AGGRO_RANGE = 16; // for existing monsters
+    uint256 internal constant DEFAULT_AGGRO_CHANCE = 16; // out of 128 - spawns a new monster
     uint256 internal constant STARTING_OCCUPANT_THRESHOLD = 16;
+
+    uint256 internal constant DAMAGE_DILUTION_FACTOR = 500;
+    uint256 internal constant DAMAGE_DILUTION_BASE = 1000;
 
     // BALANCES
     uint256 internal constant BUY_IN_AMOUNT = 1e17; // 0.1 shMON buyin
@@ -84,6 +90,10 @@ contract Constants {
 
     uint256 internal constant BALANCE_SHORTFALL_FACTOR = 200;
     uint256 internal constant BALANCE_SHORTFALL_BASE = 100;
+    uint256 internal constant MAX_ESTIMATED_EXECUTOR_DELAY = 8; // blocks
+    uint8 internal constant MAX_ESTIMATED_EXECUTOR_DELAY_UINT8 = uint8(MAX_ESTIMATED_EXECUTOR_DELAY); // blocks
+    uint256 internal constant MAX_ESTIMATED_TASK_DELAY = 16; // blocks
+    uint8 internal constant MAX_ESTIMATED_TASK_DELAY_UINT8 = uint8(MAX_ESTIMATED_TASK_DELAY); // blocks
 
     // Randomness Seeds
     bytes4 internal constant _CHARACTER_SEED = 0xf317a40f; // bytes4(keccak256("Character Creation"));
@@ -97,4 +107,5 @@ contract Constants {
     bytes4 internal constant _MONSTER_LEVEL_SEED = 0x2970490a; // bytes4(keccak256("Monster Level"));
     bytes4 internal constant _MONSTER_AGGRO_SEED = 0x2e11136c; // bytes4(keccak256("Monster Aggro"));
     bytes4 internal constant _LOCATION_SPAWN_SEED = 0x2a639c6e; // bytes4(keccak256("Location Spawn"));
+    bytes4 internal constant _COOLDOWN_SEED = 0x70fbe9d5; // bytes4(keccak256("Cooldown"));
 }

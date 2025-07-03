@@ -25,7 +25,7 @@ import {
     SessionKey,
     SessionKeyData,
     GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 import { BattleNadsEntrypoint } from "src/battle-nads/Entrypoint.sol";
 import { StatSheet } from "src/battle-nads/libraries/StatSheet.sol";
 
@@ -256,8 +256,6 @@ contract BattleNadsBaseTest is BaseTest {
         BattleNad memory currentState = battleNads.getBattleNad(charId);
         require(currentState.stats.combatants > 0, "Character must be in combat");
 
-        uint256 lastAbilityBlock = 0; // Track when last ability was used
-
         for (uint256 i = 0; i < maxRounds; i++) {
             currentState = battleNads.getBattleNad(charId);
 
@@ -274,9 +272,6 @@ contract BattleNadsBaseTest is BaseTest {
                     uint256 blocksToRoll = targetBlock - block.number + 1;
                     _rollForward(blocksToRoll);
 
-                    // Track when this ability executed for cooldown calculation
-                    lastAbilityBlock = block.number;
-
                     // Check if combat ended after ability execution
                     BattleNad memory afterExecution = battleNads.getBattleNad(charId);
                     if (afterExecution.stats.combatants == 0) {
@@ -286,18 +281,11 @@ contract BattleNadsBaseTest is BaseTest {
                 }
             }
 
-            // Check if we need to wait for ability cooldown (200 blocks)
-            if (lastAbilityBlock > 0 && block.number < lastAbilityBlock + 200) {
-                uint256 cooldownRemaining = (lastAbilityBlock + 200) - block.number;
-                vm.roll(block.number + cooldownRemaining + 1);
-            }
-
             // Use appropriate ability to progress combat
             bool abilityUsed = _useAppropriateAbility(charId);
 
             if (abilityUsed) {
                 // Ability was scheduled, will be handled in next iteration
-                lastAbilityBlock = block.number; // Update ability usage time
                 continue;
             } else {
                 // If we can't use abilities, wait a bit for combat to progress naturally

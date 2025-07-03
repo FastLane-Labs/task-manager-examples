@@ -12,14 +12,15 @@ import {
     Inventory,
     Weapon,
     Armor,
-    DataFeed
+    DataFeed,
+    CombatTracker
 } from "./Types.sol";
 
 import {
     SessionKey,
     SessionKeyData,
     GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/GasRelayTypes.sol";
+} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 import { TaskHandler } from "./TaskHandler.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -34,6 +35,7 @@ contract Getters is TaskHandler {
     using Equipment for Inventory;
     using StatSheet for BattleNad;
     using StatSheet for BattleNadLite;
+    using StatSheet for BattleNadStats;
     using Names for BattleNad;
     using Names for BattleNadLite;
 
@@ -60,14 +62,12 @@ contract Getters is TaskHandler {
             string[] memory equipableArmorNames,
             DataFeed[] memory dataFeeds,
             uint256 balanceShortfall,
-            uint256 unallocatedAttributePoints,
             uint256 endBlock
         )
     {
         characterID = characters[owner];
         sessionKeyData = getCurrentSessionKeyData(owner);
         character = getBattleNad(characterID);
-        unallocatedAttributePoints = uint256(character.unallocatedStatPoints());
         balanceShortfall = _shortfallToRecommendedBalanceInMON(character);
         if (balanceShortfall > 0) {
             uint256 recommendedBalance = _getRecommendedBalanceInMON();
@@ -79,10 +79,13 @@ contract Getters is TaskHandler {
         noncombatants = _getNonCombatantBattleNads(characterID);
         (equipableWeaponIDs, equipableWeaponNames,) = _getEquippableWeapons(characterID);
         (equipableArmorIDs, equipableArmorNames,) = _getEquippableArmor(characterID);
-        if (startBlock != 0 && startBlock <= block.number) {
-            dataFeeds = _getDataFeedForRange(character, startBlock, block.number);
+        if (startBlock >= block.number) {
+            startBlock = block.number - 1;
+        } else if (startBlock < block.number - 20) {
+            startBlock = block.number - 20;
         }
-        endBlock = startBlock < block.number ? block.number : startBlock;
+        endBlock = block.number;
+        dataFeeds = _getDataFeedForRange(character, startBlock, endBlock);
     }
 
     function getDataFeed(
@@ -121,14 +124,11 @@ contract Getters is TaskHandler {
 
     // FOR THE LOVE OF ALL THAT IS GOOD, DO NOT CALL THIS ON CHAIN!
     function getBattleNad(bytes32 characterID) public view returns (BattleNad memory character) {
-        character = _loadBattleNad(characterID);
-        if (character.stats.health == 0) {
-            character.tracker.died = true;
-        }
-        character = _addClassStatAdjustments(character);
+        character = _loadBattleNad(characterID, true);
+        character.activeTask = _buildCombatTracker(character);
         character.inventory = inventories[characterID];
 
-        if (!character.tracker.died) {
+        if (!character.isDead()) {
             character = character.loadEquipment();
             if (!character.isMonster()) {
                 character.activeAbility = _loadAbility(characterID);
@@ -148,7 +148,7 @@ contract Getters is TaskHandler {
         BattleNadStats memory stats = _loadBattleNadStats(characterID);
         character.id = characterID;
         character.class = stats.class;
-        if (stats.health == 0) {
+        if (stats.isDead()) {
             character.isDead = true;
         }
         stats = _handleAddClassStats(stats);

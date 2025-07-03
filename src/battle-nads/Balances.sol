@@ -15,7 +15,8 @@ import {
     PayoutTracker
 } from "./Types.sol";
 
-import { GasRelayBase } from "lib/fastlane-contracts/src/common/relay/GasRelayBase.sol";
+import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/GasRelayWithScheduling.sol";
+import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/GasRelayWithScheduling.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
@@ -23,19 +24,20 @@ import { StatSheet } from "./libraries/StatSheet.sol";
 import { Instances } from "./Instances.sol";
 
 // These are the entrypoint functions called by the tasks
-abstract contract Balances is GasRelayBase, Instances {
+abstract contract Balances is GasRelayWithScheduling, Instances {
     using StatSheet for BattleNad;
+    using StatSheet for BattleNadStats;
 
     constructor(
         address taskManager,
         address shMonad
     )
-        GasRelayBase(
-            taskManager,
-            shMonad,
+        GasRelayWithScheduling(
             MIN_EXECUTION_GAS + MOVEMENT_EXTRA_GAS + BASE_TX_GAS_COST + MIN_REMAINDER_GAS_BUFFER,
-            32,
-            2
+            8,
+            4,
+            50_000,
+            50_000
         )
     { }
 
@@ -168,22 +170,22 @@ abstract contract Balances is GasRelayBase, Instances {
 
     function _getBuyInAmountInShMON() internal view returns (uint256 minBondedShares) {
         minBondedShares = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT
-            + (32 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+            + (64 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getBuyInAmountInMON() internal view returns (uint256 minAmount) {
         minAmount = _convertShMonToDepositedMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT)
-            + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+            + (64 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
     }
 
     function _getRecommendedBalanceInShMON() internal view returns (uint256 minBondedShares) {
         minBondedShares = MIN_BONDED_AMOUNT
-            + (32 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+            + (64 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
     }
 
     function _getRecommendedBalanceInMON() internal view returns (uint256 minAmount) {
         minAmount = _convertShMonToDepositedMon(MIN_BONDED_AMOUNT)
-            + (32 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+            + (64 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
     }
 
     // If a player's bonded balance drops below this amount and they can't reschedule a task then
@@ -195,6 +197,29 @@ abstract contract Balances is GasRelayBase, Instances {
     // Override the _minBondedShares value in GasRelayBase.sol so that the session key doesn't
     // take shMON that is committed to be used by the task manager for combat automation
     function _minBondedShares(address account) internal view override returns (uint256 shares) {
-        shares = _getRecommendedBalanceInShMON();
+        uint256 taskShareReserve =
+            32 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+
+        // Load the character id
+        bytes32 characterID = characters[account];
+
+        // If there is no character ID it's a new character so enforce the MIN_BONDED_AMOUNT check
+        if (!_isValidID(characterID)) {
+            return (taskShareReserve * 2) + MIN_BONDED_AMOUNT;
+        }
+
+        // If the character is dead and owner is making a new one
+        BattleNadStats memory stats = _loadBattleNadStats(characterID);
+        if (stats.isDead() && account == tx.origin) {
+            return (taskShareReserve * 2) + MIN_BONDED_AMOUNT;
+        }
+
+        // If character is in combat make sure there's enough reserve for additional tasks
+        if (stats.combatantBitMap != 0) {
+            return (taskShareReserve * 2);
+        }
+
+        // Otherwise it's a normal return
+        return taskShareReserve;
     }
 }

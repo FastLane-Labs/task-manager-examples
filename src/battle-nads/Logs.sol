@@ -194,7 +194,7 @@ abstract contract Logs is Storage {
         view
         returns (DataFeed[] memory dataFeeds)
     {
-        uint256 length = 1 + endBlock - startBlock;
+        uint256 length = endBlock - startBlock;
         dataFeeds = new DataFeed[](length);
         for (uint256 i; i < length; i++) {
             bytes32 logSpaceID = _getLogSpaceID(character, startBlock + i);

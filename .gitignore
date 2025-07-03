@@ -9,9 +9,11 @@ out/
 
 # Docs
 docs/
+changes.md
 
 # Dotenv file
 .env
 .cursor
 .DS_Store
+CLAUDE.md
 broadcast/execute-tasks.s.sol
