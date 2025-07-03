@@ -1,21 +1,8 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IShMonad } from "@fastlane-contracts/shmonad/interfaces/IShMonad.sol";
-import {
-    BattleNad,
-    BattleNadStats,
-    Inventory,
-    Weapon,
-    Armor,
-    StorageTracker,
-    BalanceTracker,
-    Log,
-    PayoutTracker
-} from "./Types.sol";
+import { BattleNad, BattleNadStats, Inventory, BalanceTracker, Log } from "./Types.sol";
 
-import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/GasRelayWithScheduling.sol";
 import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/GasRelayWithScheduling.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
