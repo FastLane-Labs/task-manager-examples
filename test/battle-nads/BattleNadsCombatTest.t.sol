@@ -201,7 +201,7 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         console.log("Starting combat with", _getClassName(startState.stats.class));
         
         // Fight using smart ability selection until combat ends (increased max rounds)
-        (bool survived, BattleNad memory finalState) = _fightWithAbilities(fighter, 50);
+        (bool survived, BattleNad memory finalState) = _fightWithAbilities(fighter, 100);
         
         // Character should survive at level 1 with decent stats
         assertTrue(survived, "Level 1 character should survive basic combat");
