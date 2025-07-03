@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 import {
-    CharacterClass,
     BattleNadStats,
     BattleNad,
     BattleNadLite,
@@ -10,13 +9,9 @@ import {
     BalanceTracker,
     BattleArea,
     AbilityTracker,
-    LogType,
     Log,
-    PayoutTracker,
     Ability
 } from "./Types.sol";
-
-import { Errors } from "./libraries/Errors.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 import { Names } from "./libraries/Names.sol";
 import { Equipment } from "./libraries/Equipment.sol";

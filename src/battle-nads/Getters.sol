@@ -5,26 +5,17 @@ import {
     BattleNad,
     BattleNadStats,
     BattleNadLite,
-    Ability,
     AbilityTracker,
     BattleArea,
-    StorageTracker,
     Inventory,
     Weapon,
     Armor,
-    DataFeed,
-    CombatTracker
+    DataFeed
 } from "./Types.sol";
 
-import {
-    SessionKey,
-    SessionKeyData,
-    GasAbstractionTracker
-} from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
+import { SessionKeyData } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 import { TaskHandler } from "./TaskHandler.sol";
-import { Errors } from "./libraries/Errors.sol";
-import { Events } from "./libraries/Events.sol";
 import { Equipment } from "./libraries/Equipment.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 import { Names } from "./libraries/Names.sol";

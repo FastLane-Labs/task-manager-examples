@@ -2,17 +2,7 @@
 pragma solidity 0.8.28;
 
 import {
-    BattleNad,
-    BattleNadStats,
-    BattleArea,
-    StorageTracker,
-    Inventory,
-    BalanceTracker,
-    LogType,
-    Log,
-    AbilityTracker,
-    Ability,
-    PayoutTracker
+    BattleNad, BattleArea, StorageTracker, Inventory, BalanceTracker, Log, AbilityTracker, Ability
 } from "./Types.sol";
 
 import { Balances } from "./Balances.sol";

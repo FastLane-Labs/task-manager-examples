@@ -1,18 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import {
-    BattleNadStats,
-    BattleNad,
-    Inventory,
-    BalanceTracker,
-    LogType,
-    Log,
-    DataFeed,
-    Ability,
-    AbilityTracker,
-    BattleArea
-} from "./Types.sol";
+import { BattleNad, LogType, Log, DataFeed, Ability, BattleArea } from "./Types.sol";
 
 import { Storage } from "./Storage.sol";
 import { Errors } from "./libraries/Errors.sol";

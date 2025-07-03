@@ -1,9 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import {
-    BattleNad, BattleNadStats, Inventory, StorageTracker, CharacterClass, Ability, AbilityTracker
-} from "./Types.sol";
+import { BattleNad, BattleNadStats, Inventory, StorageTracker, Ability, AbilityTracker } from "./Types.sol";
 
 import { Constants } from "./Constants.sol";
 import { Errors } from "./libraries/Errors.sol";
