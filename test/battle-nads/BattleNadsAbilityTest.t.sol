@@ -483,4 +483,132 @@ contract BattleNadsAbilityTest is BattleNadsBaseTest {
             }
         }
     }
+
+    // =============================================================================
+    // EQUIPMENT AND INVENTORY LOADING TESTS (Issue #20)
+    // =============================================================================
+
+    /**
+     * @dev Tests that equipment and inventory data are properly loaded when using abilities
+     * This test verifies the fix for issue #20 where ability usage returned empty equipment data
+     */
+    function test_Ability_EquipmentAndInventoryLoading() public {
+        bytes32 character = character1;
+        
+        // First equip some items to the character by setting weapon and armor IDs
+        _modifyCharacterStat(character, "weaponID", 4); // Set weapon ID
+        _modifyCharacterStat(character, "armorID", 4);  // Set armor ID
+        
+        // Get character data before ability to verify equipment is set
+        BattleNad memory beforeAbility = battleNads.getBattleNad(character);
+        console.log("=== Before Ability Usage ===");
+        console.log("Weapon ID:", beforeAbility.stats.weaponID);
+        console.log("Armor ID:", beforeAbility.stats.armorID);
+        console.log("Weapon Name:", beforeAbility.weapon.name);
+        console.log("Armor Name:", beforeAbility.armor.name);
+        
+        // Verify character has equipment IDs
+        assertTrue(beforeAbility.stats.weaponID > 0, "Character should have weapon equipped");
+        assertTrue(beforeAbility.stats.armorID > 0, "Character should have armor equipped");
+        
+        // Enter combat to use abilities
+        bool combatStarted = _triggerRandomCombat(character);
+        assertTrue(combatStarted, "Should enter combat");
+        
+        // Use a non-offensive ability (doesn't require target)
+        vm.prank(userSessionKey1);
+        battleNads.useAbility(character, 0, 1);
+        
+        // Get character data after ability usage
+        BattleNad memory afterAbility = battleNads.getBattleNad(character);
+        console.log("=== After Ability Usage ===");
+        console.log("Weapon ID:", afterAbility.stats.weaponID);
+        console.log("Armor ID:", afterAbility.stats.armorID);
+        console.log("Weapon Name:", afterAbility.weapon.name);
+        console.log("Weapon Base Damage:", afterAbility.weapon.baseDamage);
+        console.log("Armor Name:", afterAbility.armor.name);
+        console.log("Armor Factor:", afterAbility.armor.armorFactor);
+        console.log("Inventory Weapon Bitmap:", afterAbility.inventory.weaponBitmap);
+        console.log("Inventory Armor Bitmap:", afterAbility.inventory.armorBitmap);
+        
+        // Verify equipment data is still loaded (not empty) after ability usage
+        if (afterAbility.stats.weaponID > 0) {
+            assertTrue(
+                bytes(afterAbility.weapon.name).length > 0 || afterAbility.weapon.baseDamage > 0,
+                "Weapon data should be loaded when weapon is equipped"
+            );
+        }
+        
+        if (afterAbility.stats.armorID > 0) {
+            assertTrue(
+                bytes(afterAbility.armor.name).length > 0 || afterAbility.armor.armorFactor > 0,
+                "Armor data should be loaded when armor is equipped"
+            );
+        }
+        
+        // Verify inventory data is loaded
+        assertTrue(
+            afterAbility.inventory.weaponBitmap > 0 || afterAbility.inventory.armorBitmap > 0 || afterAbility.inventory.balance > 0,
+            "Inventory data should be loaded"
+        );
+        
+        console.log("Equipment and inventory data properly loaded during ability usage!");
+    }
+
+    /**
+     * @dev Tests equipment loading for offensive abilities with targets
+     */
+    function test_Ability_OffensiveWithEquipmentLoading() public {
+        bytes32 attacker = character1;
+        bytes32 defender = character2;
+        
+        // Equip items to both characters by setting weapon and armor IDs
+        _modifyCharacterStat(attacker, "weaponID", 3); // Set weapon ID
+        _modifyCharacterStat(attacker, "armorID", 3);  // Set armor ID
+        _modifyCharacterStat(defender, "weaponID", 5); // Set weapon ID
+        _modifyCharacterStat(defender, "armorID", 5);  // Set armor ID
+        
+        // Enter combat
+        bool combatStarted = _triggerRandomCombat(attacker);
+        assertTrue(combatStarted, "Should enter combat");
+        
+        // Find target for offensive ability
+        uint256 targetIndex = _findCombatTarget(attacker);
+        assertTrue(targetIndex > 0, "Should find valid target");
+        
+        // Determine offensive ability index based on class
+        BattleNad memory attackerData = battleNads.getBattleNad(attacker);
+        uint256 offensiveAbilityIndex = attackerData.stats.class == CharacterClass.Warrior ? 1 : 2;
+        
+        // Use offensive ability
+        vm.prank(userSessionKey1);
+        battleNads.useAbility(attacker, targetIndex, offensiveAbilityIndex);
+        
+        // Get updated attacker data
+        BattleNad memory afterAbility = battleNads.getBattleNad(attacker);
+        
+        // Verify both attacker's equipment is loaded
+        console.log("=== Attacker Equipment After Offensive Ability ===");
+        console.log("Weapon ID:", afterAbility.stats.weaponID);
+        console.log("Weapon Name:", afterAbility.weapon.name);
+        console.log("Armor ID:", afterAbility.stats.armorID);
+        console.log("Armor Name:", afterAbility.armor.name);
+        
+        if (afterAbility.stats.weaponID > 0) {
+            assertTrue(
+                bytes(afterAbility.weapon.name).length > 0 || afterAbility.weapon.baseDamage > 0,
+                "Attacker weapon data should be loaded"
+            );
+        }
+        
+        if (afterAbility.stats.armorID > 0) {
+            assertTrue(
+                bytes(afterAbility.armor.name).length > 0 || afterAbility.armor.armorFactor > 0,
+                "Attacker armor data should be loaded"
+            );
+        }
+        
+        // The defender's equipment should also be loaded in the handler
+        console.log("Offensive ability with equipment loading test passed!");
+    }
 } 
