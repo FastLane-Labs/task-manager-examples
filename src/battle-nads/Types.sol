@@ -214,3 +214,11 @@ struct DataFeed {
     Log[] logs;
     string[] chatLogs;
 }
+
+// Typed return structs for cleaner function signatures
+
+struct EquipmentInfo {
+    uint8[] itemIDs;
+    string[] itemNames;
+    uint8 currentItemID;
+}
