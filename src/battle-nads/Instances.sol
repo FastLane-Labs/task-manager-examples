@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { BattleNad, BattleNadStats, BattleArea, StorageTracker, Inventory } from "./Types.sol";
+import { BattleNad, BattleNadStats, BattleArea, StorageTracker, Inventory, BalanceTracker } from "./Types.sol";
 
 import { Combat } from "./Combat.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -282,31 +282,54 @@ abstract contract Instances is Combat {
         view
         returns (BattleArea memory area, uint8 x, uint8 y)
     {
+        // Generate seed
+        bytes32 randomSeed = keccak256(
+            abi.encode(_LOCATION_SPAWN_SEED, STARTING_OCCUPANT_THRESHOLD, player.id, blockhash(block.number - 1))
+        );
+
         // Define variables
         uint256 threshold = STARTING_OCCUPANT_THRESHOLD;
+        uint256 distancer = (balances.playerCount / (STARTING_OCCUPANT_THRESHOLD * 8)) + 1;
+        if (distancer > 20) distancer = 20;
         uint256 maxOccupants = MAX_COMBATANTS_PER_AREA - 1;
-        uint256 i;
-        uint256 baseX = 26;
-        uint256 baseY = 26;
+        uint256 i = (uint256(0xff) & uint256(randomSeed)) % 8;
+        uint256 j = ((uint256(0xff) & uint256(randomSeed >> 32)) % distancer) + 1;
+        uint256 baseX = 25;
+        uint256 baseY = 25;
         do {
             // Generate X and Y
-            if (i % 4 == 0) {
-                baseX = baseY;
-            } else if (i % 4 == 1) {
-                ++baseX;
-            } else if (i % 4 == 2) {
-                ++baseY;
-            } else if (i % 4 == 3) {
-                --baseX;
-            }
+            if (i % 6 == 0) {
+                x = uint8(baseX + j);
+                y = uint8(baseY);
+            } else if (i % 8 == 1) {
+                x = uint8(baseX + j);
+                y = uint8(baseY + j);
+            } else if (i % 8 == 2) {
+                x = uint8(baseX);
+                y = uint8(baseY + j);
+            } else if (i % 8 == 3) {
+                x = uint8(baseX - j);
+                y = uint8(baseY + j);
+            } else if (i % 8 == 4) {
+                x = uint8(baseX - j);
+                y = uint8(baseY);
+            } else if (i % 8 == 5) {
+                x = uint8(baseX - j);
+                y = uint8(baseY - j);
+            } else if (i % 8 == 6) {
+                x = uint8(baseX);
+                y = uint8(baseY - j);
+            } else if (i % 8 == 7) {
+                x = uint8(baseX + j);
+                y = uint8(baseY - j);
 
-            x = uint8(baseX);
-            y = uint8(baseY);
+                // Increment for next loop
+                ++threshold;
+                ++j;
+            }
 
             // Load area
-            unchecked {
-                area = _loadArea(1, x, y);
-            }
+            area = _loadArea(1, x, y);
 
             // Get number of current occupants
             if (uint256(area.playerCount) + uint256(area.monsterCount) < threshold) {
@@ -315,7 +338,6 @@ abstract contract Instances is Combat {
 
             // If area is too full, randomly choose another area and increase the acceptable threshold
             unchecked {
-                ++threshold;
                 ++i;
             }
         } while (gasleft() > 120_000 && threshold < maxOccupants);
@@ -325,5 +347,10 @@ abstract contract Instances is Combat {
         x = 0;
         y = 0;
         return (nullArea, x, y);
+    }
+
+    function _isNoCombatZone(uint8 x, uint8 y, uint8 depth) internal pure returns (bool) {
+        return (depth > 1) && (!_isBoss(depth, x, y)) && (x % NO_COMBAT_ZONE_SPACING == 0)
+            && (y % NO_COMBAT_ZONE_SPACING == 0);
     }
 }

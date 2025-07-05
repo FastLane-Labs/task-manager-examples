@@ -105,16 +105,19 @@ abstract contract Handler is Balances {
         // Store previous depth (only spawn boss monster when trying to go down, not up)
         uint8 prevDepth = player.stats.depth;
 
-        // Log that we left the previous area
-        _logLeftArea(player);
-
         // Establish a random seed
         bytes32 randomSeed =
             keccak256(abi.encode(_AREA_SEED, player.id, newX, newY, newDepth, blockhash(block.number - 1)));
 
         // Find an open slot and move to it
-        uint8 newIndex = _findNextIndex(area, randomSeed);
-        (player, area) = _enterLocation(player, area, newX, newY, newDepth, newIndex);
+        _leaveLocation(player);
+        (player, area) = _enterLocation(player, area, newX, newY, newDepth, _findNextIndex(area, randomSeed));
+
+        // Return early if it's a no combat zone
+        if (_isNoCombatZone(newX, newY, newDepth)) {
+            _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
+            return player;
+        }
 
         // Check for aggro
         (uint8 monsterIndex, bool newMonster) = _checkForAggro(player, area, randomSeed, prevDepth);
@@ -191,6 +194,7 @@ abstract contract Handler is Balances {
         CalledBySelfInTryCatch
         NotWhileDead(player)
         NotWhileInCombat(player)
+        OnlyInCombatZones(player)
         returns (BattleNad memory)
     {
         // Commit honorable ascenscion, return inventory balance to owner after delay;
@@ -209,6 +213,7 @@ abstract contract Handler is Balances {
         external
         CalledBySelfInTryCatch
         NotWhileDead(attacker)
+        OnlyInCombatZones(attacker)
         returns (BattleNad memory)
     {
         // Load the target
@@ -518,6 +523,7 @@ abstract contract Handler is Balances {
         external
         CalledBySelfInTryCatch
         NotWhileDead(attacker)
+        OnlyInCombatZones(attacker)
         returns (BattleNad memory)
     {
         // Load ability
@@ -620,9 +626,7 @@ abstract contract Handler is Balances {
     }
 
     function _forceKill(BattleNad memory combatant) internal returns (uint256 cashedOutShMONShares) {
-        if (combatant.stats.x != 0 || combatant.stats.y != 0) {
-            _leaveLocation(combatant);
-        }
+        _leaveLocation(combatant);
 
         // Remove opponents from being in combat with combatant
         combatant = _combatCheckLoop(combatant, true);
@@ -761,8 +765,10 @@ abstract contract Handler is Balances {
     }
 
     modifier CalledBySelfInTryCatch() {
-        if (msg.sender != address(this)) {
-            revert Errors.InvalidCaller(msg.sender);
+        {
+            if (msg.sender != address(this)) {
+                revert Errors.InvalidCaller(msg.sender);
+            }
         }
         _;
     }
@@ -784,8 +790,19 @@ abstract contract Handler is Balances {
     }
 
     modifier NotWhileDead(BattleNad memory player) {
-        if (player.isDead()) {
-            revert Errors.CantProcessWhileDead();
+        {
+            if (player.isDead()) {
+                revert Errors.CantProcessWhileDead();
+            }
+        }
+        _;
+    }
+
+    modifier OnlyInCombatZones(BattleNad memory player) {
+        {
+            if (_isNoCombatZone(player.stats.x, player.stats.y, player.stats.depth)) {
+                revert Errors.CantFightInNoCombatZone(player.stats.x, player.stats.y, player.stats.depth);
+            }
         }
         _;
     }

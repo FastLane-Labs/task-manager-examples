@@ -31,11 +31,11 @@ abstract contract Character is Abilities {
 
         if (quickness * QUICKNESS_BASELINE + luck > cooldownRoll) {
             --cooldown;
-        } else if (cooldownRoll - uint256(stats.level) < luck) {
+        } else if (cooldownRoll < luck + uint256(stats.level)) {
             --cooldown;
         }
 
-        if (quickness * 2 + uint256(stats.dexterity) + luck > cooldownRoll - uint256(stats.level)) {
+        if (quickness * 2 + uint256(stats.dexterity) + luck + uint256(stats.level) > cooldownRoll) {
             --cooldown;
         }
 
@@ -173,12 +173,6 @@ abstract contract Character is Abilities {
                 revert Errors.InvalidLocationBitmap(monsterBitMap, monsterBit);
             }
         } else {
-            // Leave the previous area if it isnt a brand new character
-            // NOTE: Monsters don't move
-            if (combatant.stats.x != 0 && combatant.stats.y == 0) {
-                _leaveLocation(combatant);
-            }
-
             // Update the new area
             area.sumOfPlayerLevels += uint16(combatant.stats.level);
             ++area.playerCount;
@@ -249,8 +243,15 @@ abstract contract Character is Abilities {
     }
 
     function _leaveLocation(BattleNad memory combatant) internal {
+        if (combatant.stats.x == 0 || combatant.stats.y == 0) {
+            return;
+        }
         // Load the area
         BattleArea memory area = _loadArea(combatant.stats.depth, combatant.stats.x, combatant.stats.y);
+
+        if (!combatant.isDead() && !combatant.isMonster()) {
+            area = _logLeftArea(combatant, area);
+        }
 
         (combatant, area) = _leaveLocation(combatant, area);
 

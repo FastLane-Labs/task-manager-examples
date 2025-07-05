@@ -27,16 +27,20 @@ abstract contract Logs is Storage {
         return area;
     }
 
-    function _logLeftArea(BattleNad memory character) internal {
+    function _logLeftArea(
+        BattleNad memory character,
+        BattleArea memory areaDeparted
+    )
+        internal
+        returns (BattleArea memory)
+    {
         // Create a movement log
         Log memory log;
         log.logType = LogType.LeftArea;
         log.mainPlayerIndex = character.stats.index;
 
-        // Load previous area (area in memory is new area)
-        BattleArea memory area = _loadArea(character.stats.depth, character.stats.x, character.stats.y);
-        area = _storeLog(character, area, log);
-        _storeArea(area, character.stats.depth, character.stats.x, character.stats.y);
+        areaDeparted = _storeLog(character, areaDeparted, log);
+        return areaDeparted;
     }
 
     function _logEnteredArea(

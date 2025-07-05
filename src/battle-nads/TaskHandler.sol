@@ -320,15 +320,18 @@ contract TaskHandler is Handler {
     {
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         activeTask = address(uint160(uint256(taskID)));
-        uint64 targetBlock = uint64(uint256(taskID >> 160));
+
+        ICustomTaskManager.LoadBalancer memory _loadBal = ICustomTaskManager(TASK_MANAGER).S_loadBalancer();
+
+        uint64 activeBlock = uint64(_loadBal.activeBlockMedium);
+        uint64 targetBlock = uint64(uint256(taskID) >> 160);
 
         if (!_isValidAddress(combatant.owner)) {
             combatant.owner = _loadOwner(combatant.id);
         }
 
-        ICustomTaskManager.LoadBalancer memory _loadBal = ICustomTaskManager(TASK_MANAGER).S_loadBalancer();
         if (_isValidAddress(activeTask)) {
-            if (_loadBal.activeBlockMedium > targetBlock) {
+            if (activeBlock > targetBlock) {
                 _clearActiveTask(combatant.id);
                 activeTask = _EMPTY_ADDRESS;
             } else {
@@ -348,7 +351,7 @@ contract TaskHandler is Handler {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
                 if (key.expiration <= block.number) {
                     _clearAbility(combatant.id);
-                } else if (_loadBal.activeBlockMedium > activeAbility.targetBlock + 2) {
+                } else if (activeBlock > activeAbility.targetBlock + 2) {
                     _clearAbility(combatant.id);
                 }
             }

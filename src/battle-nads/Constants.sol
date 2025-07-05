@@ -66,13 +66,14 @@ contract Constants {
     uint256 internal constant MAX_AGGRO_RANGE = 16; // for existing monsters
     uint256 internal constant DEFAULT_AGGRO_CHANCE = 16; // out of 128 - spawns a new monster
     uint256 internal constant STARTING_OCCUPANT_THRESHOLD = 16;
+    uint8 internal constant NO_COMBAT_ZONE_SPACING = 5;
 
     uint256 internal constant DAMAGE_DILUTION_FACTOR = 500;
     uint256 internal constant DAMAGE_DILUTION_BASE = 1000;
 
     // BALANCES
     uint256 internal constant BUY_IN_AMOUNT = 1e17; // 0.1 shMON buyin
-    uint256 internal constant MIN_BONDED_AMOUNT = 5e16; // 0.05 shMON min bonded amount
+    uint256 internal constant MIN_BONDED_AMOUNT = 1e16; // 0.01 shMON min bonded amount
     uint256 internal constant BALANCE_BASE = 100;
     uint256 internal constant PLAYER_ALLOCATION = 75;
     uint256 internal constant MONSTER_ALLOCATION = 20;

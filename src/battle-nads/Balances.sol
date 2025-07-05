@@ -31,19 +31,19 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
     function _allocatePlayerBuyIn(BattleNad memory character) internal returns (BattleNad memory) {
         // Load the owner's balance
         uint256 ownerShares = _sharesBondedToThis(character.owner);
-        uint256 recommendedBuyInShares = _getBuyInAmountInShMON();
+        uint256 buyInShares = _convertMonToWithdrawnShMon(BUY_IN_AMOUNT);
 
         // Validate balances
-        if (ownerShares < recommendedBuyInShares) {
-            revert Errors.BondedBalanceTooLow(ownerShares, recommendedBuyInShares);
+        if (ownerShares < buyInShares) {
+            revert Errors.BondedBalanceTooLow(ownerShares, buyInShares);
         }
 
         // Pull the buy-in
-        _takeFromOwnerBondedShares(character.owner, BUY_IN_AMOUNT);
+        _takeFromOwnerBondedShares(character.owner, buyInShares);
 
         // Allocate a portion of it to the player
-        uint256 playerPortion = BUY_IN_AMOUNT * PLAYER_ALLOCATION / BALANCE_BASE;
-        uint256 monsterPortion = BUY_IN_AMOUNT - playerPortion; // - 1;
+        uint256 playerPortion = buyInShares * PLAYER_ALLOCATION / BALANCE_BASE;
+        uint256 monsterPortion = buyInShares - playerPortion; // - 1;
         // _bondSharesToTaskManager(1); // prevent null value cold storage write
 
         // Load the monster balances
@@ -155,24 +155,28 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
         balances = balanceTracker;
     }
 
-    function _getBuyInAmountInShMON() internal view returns (uint256 minBondedShares) {
-        minBondedShares = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT
-            + (64 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+    function _getMinTaskReserveAmount() internal view returns (uint256 minBondedAmount) {
+        minBondedAmount = 64 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
+    }
+
+    function _getMinTaskReserveShares() internal view returns (uint256 minBondedShares) {
+        minBondedShares = _convertMonToWithdrawnShMon(_getMinTaskReserveAmount());
     }
 
     function _getBuyInAmountInMON() internal view returns (uint256 minAmount) {
-        minAmount = _convertShMonToDepositedMon(BUY_IN_AMOUNT + MIN_BONDED_AMOUNT)
-            + (64 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+        minAmount = BUY_IN_AMOUNT + MIN_BONDED_AMOUNT + _getMinTaskReserveAmount();
     }
 
-    function _getRecommendedBalanceInShMON() internal view returns (uint256 minBondedShares) {
-        minBondedShares = MIN_BONDED_AMOUNT
-            + (64 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS)));
+    function _getBuyInAmountInShMON() internal view returns (uint256 minBondedShares) {
+        minBondedShares = _convertDepositedMonToShMon(_getBuyInAmountInMON());
     }
 
     function _getRecommendedBalanceInMON() internal view returns (uint256 minAmount) {
-        minAmount = _convertShMonToDepositedMon(MIN_BONDED_AMOUNT)
-            + (64 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
+        minAmount = MIN_BONDED_AMOUNT + _getMinTaskReserveAmount();
+    }
+
+    function _getRecommendedBalanceInShMON() internal view returns (uint256 minBondedShares) {
+        minBondedShares = _convertMonToWithdrawnShMon(_getRecommendedBalanceInMON());
     }
 
     // If a player's bonded balance drops below this amount and they can't reschedule a task then
@@ -184,29 +188,21 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
     // Override the _minBondedShares value in GasRelayBase.sol so that the session key doesn't
     // take shMON that is committed to be used by the task manager for combat automation
     function _minBondedShares(address account) internal view override returns (uint256 shares) {
-        uint256 taskShareReserve =
-            32 * _convertMonToWithdrawnShMon(_estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS));
-
         // Load the character id
         bytes32 characterID = characters[account];
 
         // If there is no character ID it's a new character so enforce the MIN_BONDED_AMOUNT check
         if (!_isValidID(characterID)) {
-            return (taskShareReserve * 2) + MIN_BONDED_AMOUNT;
+            return _getBuyInAmountInShMON();
         }
 
         // If the character is dead and owner is making a new one
         BattleNadStats memory stats = _loadBattleNadStats(characterID);
         if (stats.isDead() && account == tx.origin) {
-            return (taskShareReserve * 2) + MIN_BONDED_AMOUNT;
-        }
-
-        // If character is in combat make sure there's enough reserve for additional tasks
-        if (stats.combatantBitMap != 0) {
-            return (taskShareReserve * 2);
+            return _getBuyInAmountInShMON();
         }
 
         // Otherwise it's a normal return
-        return taskShareReserve;
+        return _getRecommendedBalanceInShMON();
     }
 }

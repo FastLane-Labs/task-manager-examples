@@ -63,19 +63,19 @@ abstract contract Abilities is Classes {
                 // Windup
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 2;
+                nextBlock = block.number + 3;
                 attacker.tracker.updateStats = true;
             } else if (stage == 2) {
                 attacker.stats.buffs |= uint8(1 << uint256(uint8(StatusEffect.ShieldWall)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 12;
+                nextBlock = block.number + 13;
                 attacker.tracker.updateStats = true;
             } else if (stage == 3) {
                 attacker.stats.buffs &= ~uint8(1 << uint256(uint8(StatusEffect.ShieldWall)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 24;
+                nextBlock = block.number + 26;
                 attacker.tracker.updateStats = true;
             } else if (stage == 4) {
                 nextStage = 0;
@@ -87,19 +87,19 @@ abstract contract Abilities is Classes {
                 // Windup
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 2;
+                nextBlock = block.number + 3;
                 attacker.tracker.updateStats = true;
             } else if (stage == 2) {
                 attacker.stats.buffs |= uint8(1 << uint256(uint8(StatusEffect.Evasion)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 11;
+                nextBlock = block.number + 13;
                 attacker.tracker.updateStats = true;
             } else if (stage == 3) {
                 attacker.stats.buffs &= ~uint8(1 << uint256(uint8(StatusEffect.Evasion)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 22;
+                nextBlock = block.number + 24;
                 attacker.tracker.updateStats = true;
             } else if (stage == 4) {
                 nextStage = 0;
@@ -111,7 +111,7 @@ abstract contract Abilities is Classes {
                 // Windup
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 3;
+                nextBlock = block.number + 5;
                 attacker.tracker.updateStats = true;
             } else if (stage < 12) {
                 // apply debuff status effect each round incase there are multiple rogues
@@ -133,7 +133,7 @@ abstract contract Abilities is Classes {
 
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 3;
+                nextBlock = block.number + 4;
                 defender.tracker.updateStats = true;
             } else if (stage == 12) {
                 nextStage = stage + 1;
@@ -151,19 +151,19 @@ abstract contract Abilities is Classes {
                 // Windup
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 1;
+                nextBlock = block.number + 3;
                 attacker.tracker.updateStats = true;
             } else if (stage == 2) {
                 attacker.stats.buffs |= uint8(1 << uint256(uint8(StatusEffect.Praying)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 8;
+                nextBlock = block.number + 10;
                 attacker.tracker.updateStats = true;
             } else if (stage == 3) {
                 attacker.stats.buffs &= ~uint8(1 << uint256(uint8(StatusEffect.Praying)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 32; // Long cooldown
+                nextBlock = block.number + 36; // Long cooldown
                 attacker.tracker.updateStats = true;
 
                 // CASE: Stunned
@@ -220,7 +220,7 @@ abstract contract Abilities is Classes {
                 // Windup
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 5;
+                nextBlock = block.number + 6;
                 attacker.tracker.updateStats = true;
             } else if (stage == 2) {
                 defender.stats.debuffs |= uint8(1 << uint256(uint8(StatusEffect.Cursed)));
@@ -238,7 +238,7 @@ abstract contract Abilities is Classes {
 
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 18;
+                nextBlock = block.number + 20;
                 defender.tracker.updateStats = true;
             } else if (stage == 3) {
                 defender.stats.debuffs &= ~uint8(1 << uint256(uint8(StatusEffect.Cursed)));
@@ -251,7 +251,7 @@ abstract contract Abilities is Classes {
                 // Windup
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 1;
+                nextBlock = block.number + 3;
                 attacker.tracker.updateStats = true;
             } else if (stage == 2) {
                 uint256 defenderHealth = uint256(defender.stats.health);
@@ -266,7 +266,7 @@ abstract contract Abilities is Classes {
 
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 18;
+                nextBlock = block.number + 20;
                 defender.tracker.updateStats = true;
             } else if (stage == 3) {
                 nextStage = 0;
@@ -287,14 +287,14 @@ abstract contract Abilities is Classes {
                 } else {
                     nextStage = stage + 1;
                     reschedule = true;
-                    nextBlock = block.number + 4;
+                    nextBlock = block.number + 6;
                 }
             } else if (stage == 4) {
                 attacker.stats.buffs &= ~uint8(1 << uint256(uint8(StatusEffect.ChargingUp)));
                 attacker.stats.buffs |= uint8(1 << uint256(uint8(StatusEffect.ChargedUp)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 24;
+                nextBlock = block.number + 26;
                 attacker.tracker.updateStats = true;
             } else if (stage == 5) {
                 if (attacker.isChargedUp()) {
@@ -303,7 +303,7 @@ abstract contract Abilities is Classes {
                 }
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 18;
+                nextBlock = block.number + 22;
             } else if (stage == 6) {
                 if (attacker.isChargingUp()) {
                     attacker.stats.buffs &= ~uint8(1 << uint256(uint8(StatusEffect.ChargingUp)));
