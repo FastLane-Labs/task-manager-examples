@@ -311,9 +311,9 @@ abstract contract Combat is MonsterFactory {
             (uint256(combatant.stats.vitality) + uint256(combatant.stats.level)) * VITALITY_REGEN_MODIFIER;
 
         if (combatant.isMonster()) {
-            if (attacker.stats.class == CharacterClass.Boss) {
+            if (combatant.stats.class == CharacterClass.Boss) {
                 targetHealthRegeneration = targetHealthRegeneration * 3 / 2;
-            } else if (attacker.stats.class == CharacterClass.Basic) {
+            } else if (combatant.stats.class == CharacterClass.Basic) {
                 targetHealthRegeneration = targetHealthRegeneration * 4 / 5;
             } // else: elites have 1:1 regen
         }
