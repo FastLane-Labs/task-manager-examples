@@ -156,7 +156,7 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
     }
 
     function _getMinTaskReserveAmount() internal view returns (uint256 minBondedAmount) {
-        minBondedAmount = 64 * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
+        minBondedAmount = TASK_COMMIT_RESERVE_FACTOR * _estimateTaskCost(block.number + SPAWN_DELAY, TASK_GAS);
     }
 
     function _getMinTaskReserveShares() internal view returns (uint256 minBondedShares) {

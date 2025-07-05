@@ -73,7 +73,8 @@ contract Constants {
 
     // BALANCES
     uint256 internal constant BUY_IN_AMOUNT = 1e17; // 0.1 shMON buyin
-    uint256 internal constant MIN_BONDED_AMOUNT = 1e16; // 0.01 shMON min bonded amount
+    uint256 internal constant MIN_BONDED_AMOUNT = 1e17; // 0.25 shMON min bonded amount
+    uint256 internal constant TASK_COMMIT_RESERVE_FACTOR = 128;
     uint256 internal constant BALANCE_BASE = 100;
     uint256 internal constant PLAYER_ALLOCATION = 75;
     uint256 internal constant MONSTER_ALLOCATION = 20;

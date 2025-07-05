@@ -59,13 +59,8 @@ contract Getters is TaskHandler {
         characterID = characters[owner];
         sessionKeyData = getCurrentSessionKeyData(owner);
         character = getBattleNad(characterID);
-        balanceShortfall = _shortfallToRecommendedBalanceInMON(character);
-        if (balanceShortfall > 0) {
-            uint256 recommendedBalance = _getRecommendedBalanceInMON();
-            balanceShortfall = (
-                (recommendedBalance + balanceShortfall) * BALANCE_SHORTFALL_FACTOR / BALANCE_SHORTFALL_BASE
-            ) - recommendedBalance;
-        }
+        balanceShortfall =
+            _shortfallToRecommendedBalanceInMON(character) * BALANCE_SHORTFALL_FACTOR / BALANCE_SHORTFALL_BASE;
         combatants = _getCombatantBattleNads(characterID);
         noncombatants = _getNonCombatantBattleNads(characterID);
         (equipableWeaponIDs, equipableWeaponNames,) = _getEquippableWeapons(characterID);
