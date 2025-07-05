@@ -21,15 +21,15 @@ contract Constants {
     uint8 internal constant MAX_WEAPON_ID = 64;
     uint8 internal constant MAX_ARMOR_ID = 64;
 
-    uint256 internal constant HEALTH_BASE = 1200;
-    uint256 internal constant LEVEL_HEALTH_MODIFIER = 50;
+    uint256 internal constant HEALTH_BASE = 1500;
+    uint256 internal constant LEVEL_HEALTH_MODIFIER = 60;
     uint256 internal constant VITALITY_HEALTH_MODIFIER = 100;
     uint256 internal constant VITALITY_REGEN_MODIFIER = 5;
     uint256 internal constant STURDINESS_HEALTH_MODIFIER = 20;
 
-    uint256 internal constant MONSTER_HEALTH_BASE = 900;
-    uint256 internal constant MONSTER_VITALITY_HEALTH_MODIFIER = 45;
-    uint256 internal constant MONSTER_STURDINESS_HEALTH_MODIFIER = 45;
+    uint256 internal constant MONSTER_HEALTH_BASE = 1200;
+    uint256 internal constant MONSTER_VITALITY_HEALTH_MODIFIER = 60;
+    uint256 internal constant MONSTER_STURDINESS_HEALTH_MODIFIER = 40;
 
     uint256 internal constant DEFAULT_TURN_TIME = 4;
     uint256 internal constant MIN_TURN_TIME = 2;
@@ -68,7 +68,7 @@ contract Constants {
     uint256 internal constant STARTING_OCCUPANT_THRESHOLD = 16;
     uint8 internal constant NO_COMBAT_ZONE_SPACING = 5;
 
-    uint256 internal constant DAMAGE_DILUTION_FACTOR = 500;
+    uint256 internal constant DAMAGE_DILUTION_FACTOR = 300;
     uint256 internal constant DAMAGE_DILUTION_BASE = 1000;
 
     // BALANCES
