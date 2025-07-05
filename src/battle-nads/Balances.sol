@@ -7,6 +7,7 @@ import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
+import { IShMonad } from "@fastlane-contracts/shmonad/interfaces/IShMonad.sol";
 
 import { Instances } from "./Instances.sol";
 
@@ -204,5 +205,10 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
 
         // Otherwise it's a normal return
         return _getRecommendedBalanceInShMON();
+    }
+
+    // Overrides the max payment function to allow for top up values
+    function _maxPayment(address owner) internal override returns (uint256) {
+        return _amountBondedToThis(owner) + IShMonad(SHMONAD).topUpAvailable(POLICY_ID, owner, true);
     }
 }
