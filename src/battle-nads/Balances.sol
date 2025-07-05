@@ -209,6 +209,6 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
 
     // Overrides the max payment function to allow for top up values
     function _maxPayment(address owner) internal override returns (uint256) {
-        return _amountBondedToThis(owner) + IShMonad(SHMONAD).topUpAvailable(POLICY_ID, owner, true);
+        return _amountBondedToThis(owner) + IShMonad(SHMONAD).topUpAvailable(POLICY_ID(), owner, true);
     }
 }
