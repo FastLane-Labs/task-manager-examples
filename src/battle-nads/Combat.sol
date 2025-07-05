@@ -505,11 +505,23 @@ abstract contract Combat is MonsterFactory {
         ) / EVADE_MOD;
 
         if (attacker.isMonster()) {
-            toHit = toHit * 4 / 5;
+            if (attacker.stats.class == CharacterClass.Boss) {
+                toHit = toHit * 4 / 3;
+            } else if (attacker.stats.class == CharacterClass.Elite) {
+                toHit = toHit * 6 / 5;
+            } else {
+                toHit = toHit * 7 / 8;
+            }
         }
 
         if (defender.isMonster()) {
-            toEvade = toEvade * 4 / 5;
+            if (defender.stats.class == CharacterClass.Boss) {
+                toEvade = toEvade * 6 / 5;
+            } else if (defender.stats.class == CharacterClass.Elite) {
+                toEvade = toEvade * 9 / 8;
+            } else {
+                toEvade = toEvade * 8 / 9;
+            }
         }
 
         if (toHit == 0) toHit = 1;

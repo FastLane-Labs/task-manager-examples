@@ -40,8 +40,8 @@ contract Constants {
 
     uint256 internal constant BASE_FLEXIBILITY = 16;
     uint256 internal constant BASE_ACCURACY = 32;
-    uint256 internal constant HIT_MOD = 32;
-    uint256 internal constant EVADE_MOD = 32;
+    uint256 internal constant HIT_MOD = 42;
+    uint256 internal constant EVADE_MOD = 42;
     uint256 internal constant TO_HIT_BASE = 64;
     uint256 internal constant TO_CRITICAL_BASE = 192;
     uint256 internal constant EVASION_BONUS = 96;
