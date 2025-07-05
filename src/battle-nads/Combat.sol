@@ -307,7 +307,8 @@ abstract contract Combat is MonsterFactory {
 
         // Health regen has to be normalized for the default cooldown to prevent quickness points from
         // giving extreme health regeneration benefits
-        uint256 targetHealthRegeneration = (uint256(combatant.stats.vitality) + uint256(combatant.stats.level)) * VITALITY_REGEN_MODIFIER;
+        uint256 targetHealthRegeneration =
+            (uint256(combatant.stats.vitality) + uint256(combatant.stats.level)) * VITALITY_REGEN_MODIFIER;
 
         if (combatant.isMonster()) {
             if (attacker.stats.class == CharacterClass.Boss) {
