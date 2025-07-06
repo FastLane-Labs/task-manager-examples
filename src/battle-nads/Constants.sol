@@ -68,7 +68,9 @@ contract Constants {
     uint256 internal constant STARTING_OCCUPANT_THRESHOLD = 16;
     uint8 internal constant NO_COMBAT_ZONE_SPACING = 5;
 
-    uint256 internal constant DAMAGE_DILUTION_FACTOR = 380;
+    uint256 internal constant DAMAGE_DILUTION_FACTOR = 460;
+    uint256 internal constant ABILITY_DILUTION_FACTOR = 680;
+    uint256 internal constant HEALING_DILUTION_FACTOR = 320;
     uint256 internal constant DAMAGE_DILUTION_BASE = 1000;
 
     // BALANCES

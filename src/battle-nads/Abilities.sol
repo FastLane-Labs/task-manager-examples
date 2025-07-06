@@ -45,7 +45,7 @@ abstract contract Abilities is Classes {
                 damage = 50
                     + (uint256(attacker.stats.level) + uint256(attacker.stats.strength) + uint256(attacker.stats.dexterity))
                         * 10;
-                damage = damage * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
+                damage = damage * ABILITY_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
                 // Only for very very low health values
                 if (damage >= defenderHealth) {
                     defender.stats.health = 0;
@@ -123,7 +123,7 @@ abstract contract Abilities is Classes {
 
                 uint256 defenderHealth = uint256(defender.stats.health);
                 damage = (((defenderHealth * 3) + 1) / 150) + 1;
-                damage = damage * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
+                damage = damage * ABILITY_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
                 // Only for very very low health values
                 if (damage >= defenderHealth) {
                     defender.stats.health = 0;
@@ -227,7 +227,7 @@ abstract contract Abilities is Classes {
 
                 uint256 defenderHealth = uint256(defender.stats.health);
                 damage = 50 + (uint256(attacker.stats.level) + uint256(attacker.stats.luck) - 1) * 10;
-                damage = damage * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
+                damage = damage * ABILITY_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
 
                 // Only for very very low health values
                 if (damage >= defenderHealth) {
@@ -256,7 +256,7 @@ abstract contract Abilities is Classes {
             } else if (stage == 2) {
                 uint256 defenderHealth = uint256(defender.stats.health);
                 damage = 100 + (uint256(attacker.stats.level) * 30) + (defenderHealth / 6);
-                damage = damage * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
+                damage = damage * ABILITY_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
                 // Only for very very low health values
                 if (damage >= defenderHealth) {
                     defender.stats.health = 0;
