@@ -490,7 +490,7 @@ abstract contract Handler is Balances {
 
             // Only update defender reference if we got a valid new target
             // This prevents the bug where the wrong player would be stored later
-            if (_isValidID(newDefender.id)) {
+            if (_isValidID(newDefender.id) && newDefender.id != defender.id && newDefender.id != attacker.id) {
                 defender = newDefender;
             } else {
                 // Set defender to empty so we don't store it again at line 526
