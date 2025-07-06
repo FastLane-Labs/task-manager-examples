@@ -568,6 +568,10 @@ abstract contract Handler is Balances {
             return (attacker, false, 0);
         }
 
+        // Load equipment and inventory
+        attacker = attacker.loadEquipment();
+        attacker.inventory = inventories[attacker.id];
+
         // Attempt to load a defender, exit if no defenders remain
         BattleNad memory defender;
         bool loadedDefender = attacker.activeAbility.targetIndex != 0
@@ -587,6 +591,9 @@ abstract contract Handler is Balances {
                 // Return early if target cant be found - process their death in regular combat task.
                 return (attacker, false, 0);
             }
+
+            // Load defender equipment too
+            defender = defender.loadEquipment();
         }
 
         // Make sure the characters are in combat if appropriate
