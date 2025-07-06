@@ -189,22 +189,10 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
     // Override the _minBondedShares value in GasRelayBase.sol so that the session key doesn't
     // take shMON that is committed to be used by the task manager for combat automation
     function _minBondedShares(address account) internal view override returns (uint256 shares) {
-        // Load the character id
-        bytes32 characterID = characters[account];
-
-        // If there is no character ID it's a new character so enforce the MIN_BONDED_AMOUNT check
-        if (!_isValidID(characterID)) {
+        if (account == tx.origin) {
             return _getBuyInAmountInShMON();
         }
-
-        // If the character is dead and owner is making a new one
-        BattleNadStats memory stats = _loadBattleNadStats(characterID);
-        if (stats.isDead() && account == tx.origin) {
-            return _getBuyInAmountInShMON();
-        }
-
-        // Otherwise it's a normal return
-        return _getRecommendedBalanceInShMON();
+        return _getMinTaskReserveShares();
     }
 
     // Overrides the max payment function to allow for top up values
