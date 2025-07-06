@@ -487,7 +487,7 @@ abstract contract Handler is Balances {
             // IMPORTANT: This function already stores the dead defender internally
             BattleNad memory newDefender;
             (attacker, newDefender, area) = _processDeathDuringKillerTurn(attacker, defender, area);
-            
+
             // Only update defender reference if we got a valid new target
             // This prevents the bug where the wrong player would be stored later
             if (_isValidID(newDefender.id)) {
@@ -633,7 +633,7 @@ abstract contract Handler is Balances {
                 BattleArea memory nullArea;
                 BattleNad memory newDefender;
                 (attacker, newDefender, nullArea) = _processDeathDuringKillerTurn(attacker, defender, nullArea);
-                
+
                 // newDefender should be empty since attacker is not a monster
                 // The dead defender was already stored in _processDeathDuringKillerTurn
             } else {
