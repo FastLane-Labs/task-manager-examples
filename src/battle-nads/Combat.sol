@@ -305,11 +305,6 @@ abstract contract Combat is MonsterFactory {
             return (combatant, log);
         }
 
-        // Health regen has to be normalized for the default cooldown to prevent quickness points from
-        // giving extreme health regeneration benefits
-        uint256 targetHealthRegeneration =
-            (uint256(combatant.stats.vitality) + uint256(combatant.stats.level)) * VITALITY_REGEN_MODIFIER;
-
         if (combatant.isMonster()) {
             if (combatant.stats.class == CharacterClass.Boss) {
                 targetHealthRegeneration = targetHealthRegeneration * 3 / 2;
@@ -319,7 +314,7 @@ abstract contract Combat is MonsterFactory {
         }
 
         if (combatant.stats.class == CharacterClass.Monk) {
-            targetHealthRegeneration += ((uint256(combatant.stats.level) * 3 / 2) + 10);
+            targetHealthRegeneration = (targetHealthRegeneration * 5 / 4) + ((uint256(combatant.stats.level) + 3) / 3);
         } else if (combatant.stats.class == CharacterClass.Bard) {
             targetHealthRegeneration = 1;
         }
@@ -332,7 +327,12 @@ abstract contract Combat is MonsterFactory {
             targetHealthRegeneration = 0;
         }
 
-        targetHealthRegeneration = (targetHealthRegeneration + 2) * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
+        // Health regen has to be normalized for the default cooldown to prevent quickness points from
+        // giving extreme health regeneration benefits
+        uint256 targetHealthRegeneration =
+            (uint256(combatant.stats.vitality) + uint256(combatant.stats.level)) * VITALITY_REGEN_MODIFIER;
+
+        targetHealthRegeneration = (targetHealthRegeneration + 2) * HEALING_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
 
         // Cannot regenerate above max
         if (currentHealth + targetHealthRegeneration > maxHealth) {
