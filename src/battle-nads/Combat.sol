@@ -305,6 +305,11 @@ abstract contract Combat is MonsterFactory {
             return (combatant, log);
         }
 
+        // Health regen has to be normalized for the default cooldown to prevent quickness points from
+        // giving extreme health regeneration benefits
+        uint256 targetHealthRegeneration =
+            (uint256(combatant.stats.vitality) + uint256(combatant.stats.level) / 2) * VITALITY_REGEN_MODIFIER;
+
         if (combatant.isMonster()) {
             if (combatant.stats.class == CharacterClass.Boss) {
                 targetHealthRegeneration = targetHealthRegeneration * 3 / 2;
@@ -326,11 +331,6 @@ abstract contract Combat is MonsterFactory {
         } else if (combatant.isCursed()) {
             targetHealthRegeneration = 0;
         }
-
-        // Health regen has to be normalized for the default cooldown to prevent quickness points from
-        // giving extreme health regeneration benefits
-        uint256 targetHealthRegeneration =
-            (uint256(combatant.stats.vitality) + uint256(combatant.stats.level)) * VITALITY_REGEN_MODIFIER;
 
         targetHealthRegeneration = (targetHealthRegeneration + 2) * HEALING_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
 
@@ -501,14 +501,14 @@ abstract contract Combat is MonsterFactory {
         // "Hit" Modifier
         uint256 toHit = (
             ((HIT_MOD + uint256(attacker.stats.dexterity)) * (attacker.weapon.accuracy + BASE_ACCURACY))
-                + uint256(attacker.stats.luck) + uint256(attacker.stats.quickness)
+                + uint256(attacker.stats.luck) + uint256(attacker.stats.quickness) + uint256(attacker.stats.level)
         ) / HIT_MOD;
 
         uint256 toEvade = (
             (
                 (EVADE_MOD + uint256(defender.stats.dexterity) + uint256(defender.stats.luck))
                     * (defender.armor.flexibility + BASE_FLEXIBILITY)
-            ) + uint256(defender.stats.quickness)
+            ) + uint256(defender.stats.quickness) + uint256(defender.stats.level)
         ) / EVADE_MOD;
 
         if (attacker.isMonster()) {
@@ -610,12 +610,12 @@ abstract contract Combat is MonsterFactory {
         // "Hit" Modifier
         uint256 offense = (
             (BASE_OFFENSE + uint256(attacker.stats.strength)) * attacker.weapon.baseDamage
-                + uint256(attacker.stats.dexterity)
+                + uint256(attacker.stats.dexterity) + uint256(attacker.stats.level)
         ) / BASE_OFFENSE;
 
         uint256 defense = (
             (BASE_DEFENSE + uint256(defender.stats.sturdiness)) * defender.armor.armorFactor
-                + uint256(defender.stats.dexterity)
+                + uint256(defender.stats.dexterity) + uint256(defender.stats.level) / 2
         ) / BASE_DEFENSE;
 
         uint256 offenseSeed = uint256(0xffffffff) & uint256(uint32(uint256(randomSeed >> 32)));
@@ -677,8 +677,6 @@ abstract contract Combat is MonsterFactory {
             }
         }
 
-        if (rawDamage > type(uint16).max) rawDamage = type(uint16).max;
-
         if (attacker.isMonster()) {
             if (attacker.stats.class == CharacterClass.Boss) {
                 rawDamage = rawDamage * 4 / 3;
@@ -689,7 +687,9 @@ abstract contract Combat is MonsterFactory {
             }
         }
 
-        return uint16(rawDamage * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE);
+        rawDamage = (rawDamage + uint256(attacker.stats.level)) * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
+        if (rawDamage > type(uint16).max) rawDamage = type(uint16).max - 1;
+        return uint16(rawDamage);
     }
 
     function _handleLoot(

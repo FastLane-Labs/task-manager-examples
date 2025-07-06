@@ -483,8 +483,19 @@ abstract contract Handler is Balances {
 
         // Check if defender died and handle that case
         if (defender.isDead()) {
-            // NOTE: This loads a NEW defender!
-            (attacker, defender, area) = _processDeathDuringKillerTurn(attacker, defender, area);
+            // Process death and potentially get a new defender
+            // IMPORTANT: This function already stores the dead defender internally
+            BattleNad memory newDefender;
+            (attacker, newDefender, area) = _processDeathDuringKillerTurn(attacker, defender, area);
+
+            // Only update defender reference if we got a valid new target
+            // This prevents the bug where the wrong player would be stored later
+            if (_isValidID(newDefender.id) && newDefender.id != defender.id && newDefender.id != attacker.id) {
+                defender = newDefender;
+            } else {
+                // Set defender to empty so we don't store it again at line 526
+                defender.id = bytes32(0);
+            }
         }
 
         // Handle health regen and storage, then return the necessary data
@@ -508,8 +519,11 @@ abstract contract Handler is Balances {
         // Store area
         _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
-        // Store defender
-        _storeBattleNad(defender);
+        // Store defender (if valid)
+        // Dead defenders were already stored in _processDeathDuringKillerTurn
+        if (_isValidID(defender.id)) {
+            _storeBattleNad(defender);
+        }
 
         return (attacker, reschedule, nextExecutionBlock);
     }
@@ -617,9 +631,15 @@ abstract contract Handler is Balances {
                 // NOTE: Monsters cant use abilities, so attacker cant be a monster, so a null area
                 // can be used since no new target is needed.
                 BattleArea memory nullArea;
-                (attacker, defender, nullArea) = _processDeathDuringKillerTurn(attacker, defender, nullArea);
+                BattleNad memory newDefender;
+                (attacker, newDefender, nullArea) = _processDeathDuringKillerTurn(attacker, defender, nullArea);
+
+                // newDefender should be empty since attacker is not a monster
+                // The dead defender was already stored in _processDeathDuringKillerTurn
+            } else {
+                // Only store if defender is still alive
+                _storeBattleNad(defender);
             }
-            _storeBattleNad(defender);
         }
 
         return (attacker, reschedule, nextBlock);
