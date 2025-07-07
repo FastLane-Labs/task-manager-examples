@@ -58,12 +58,14 @@ abstract contract Character is Abilities {
 
         maxHealth += uint256((uint256(stats.level)) * LEVEL_HEALTH_MODIFIER);
 
-        if (
-            stats.class == CharacterClass.Basic || stats.class == CharacterClass.Elite
-                || stats.class == CharacterClass.Boss
-        ) {
-            maxHealth = maxHealth * 2 / 3;
+        if (stats.class == CharacterClass.Basic) { 
+            maxHealth = maxHealth * 3 / 4;
+        } else if (stats.class == CharacterClass.Elite) {
+            maxHealth = maxHealth * 4 / 5;
+        } else if (stats.class == CharacterClass.Boss) {
+            maxHealth = maxHealth * 4 / 3;
         }
+        
         maxHealth = _classAdjustedMaxHealth(stats, maxHealth);
         if (maxHealth > type(uint16).max - 1) maxHealth = type(uint16).max - 1;
     }

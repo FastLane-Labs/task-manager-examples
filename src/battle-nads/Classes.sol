@@ -83,9 +83,20 @@ abstract contract Classes is Logs, Constants {
 
     function _addClassStatAdjustments(BattleNad memory combatant) internal pure override returns (BattleNad memory) {
         if (!combatant.tracker.classStatsAdded) {
+            uint256 rawMaxHealth = _maxHealth(combatant.stats);
+            uint256 rawHealth = uint256(combatant.stats.health);
             combatant.stats = _handleAddClassStats(combatant.stats);
+            uint256 adjMaxHealth = _maxHealth(combatant.stats);
+
+            if (combatant.isInCombat()) {
+                uint256 adjHealth = (rawHealth * adjMaxHealth - 1) / rawMaxHealth;
+                combatant.stats.health = uint16(adjHealth);
+            } else {
+                combatant.stats.health = uint16(adjMaxHealth);
+            }
+
+            combatant.maxHealth = adjMaxHealth;
             combatant.tracker.classStatsAdded = true;
-            combatant.maxHealth = _maxHealth(combatant.stats);
         }
         return combatant;
     }
@@ -97,7 +108,18 @@ abstract contract Classes is Logs, Constants {
         returns (BattleNad memory)
     {
         if (combatant.tracker.classStatsAdded) {
+            uint256 adjMaxHealth = _maxHealth(combatant.stats);
+            uint256 adjHealth = uint256(combatant.stats.health);
             combatant.stats = _handleRemoveClassStats(combatant.stats);
+            uint256 rawMaxHealth = _maxHealth(combatant.stats);
+
+            if (combatant.isInCombat()) {
+                uint256 rawHealth = (adjHealth * rawMaxHealth + 1) / adjMaxHealth;
+                combatant.stats.health = uint16(rawHealth);
+            } else {
+                combatant.stats.health = uint16(rawMaxHealth);
+            }
+
             combatant.tracker.classStatsAdded = false;
         }
         return combatant;

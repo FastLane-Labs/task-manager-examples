@@ -26,6 +26,7 @@ contract Constants {
     uint256 internal constant VITALITY_HEALTH_MODIFIER = 100;
     uint256 internal constant VITALITY_REGEN_MODIFIER = 3;
     uint256 internal constant STURDINESS_HEALTH_MODIFIER = 20;
+    uint256 internal constant HEALTH_ADJUSTMENT_PRECISION = 10_000_000;
 
     uint256 internal constant MONSTER_HEALTH_BASE = 1200;
     uint256 internal constant MONSTER_VITALITY_HEALTH_MODIFIER = 60;
