@@ -320,6 +320,38 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         return (combatant, false);
     }
 
+    function _forceClearTasks(BattleNad memory combatant) internal override {
+        if (!_isValidID(combatant.id)) {
+            return;
+        }
+
+        bytes32 taskID = _loadActiveTaskID(combatant.id);
+        activeTask = address(uint160(uint256(taskID)));
+
+        if (!_isValidAddress(combatant.owner)) {
+            combatant.owner = _loadOwner(combatant.id);
+        }
+
+        if (_isValidAddress(activeTask)) {
+            _clearActiveTask(combatant.id);
+            SessionKey memory key = _loadSessionKey(activeTask);
+            if (combatant.owner == key.owner && key.expiration > 0) {
+                _updateSessionKey(activeTask, false, key.owner, 0);
+            }
+        }
+
+        if (!combatant.isMonster()) {
+            AbilityTracker memory activeAbility = _loadAbility(combatant.id);
+            if (_isValidAddress(activeAbility.taskAddress)) {
+                SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
+                _clearAbility(combatant.id);
+                if (combatant.owner == key.owner && key.expiration > 0) {
+                    _updateSessionKey(activeAbility.taskAddress, false, key.owner, 0);
+                }
+            }
+        }
+    }
+
     function _checkClearTasks(BattleNad memory combatant)
         internal
         override

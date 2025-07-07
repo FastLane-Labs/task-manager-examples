@@ -469,7 +469,7 @@ abstract contract Combat is MonsterFactory {
         log.hit = isHit;
         log.critical = isCritical;
         if (!isHit) {
-            emit Events.CombatMiss(attacker.areaID(), attacker.id, defender.id);
+            // emit Events.CombatMiss(attacker.areaID(), attacker.id, defender.id);
 
             return (attacker, defender, log);
         }
@@ -504,7 +504,7 @@ abstract contract Combat is MonsterFactory {
     {
         // "Hit" Modifier
         uint256 toHit = (
-            ((HIT_MOD + uint256(attacker.stats.dexterity)) * (attacker.weapon.accuracy + BASE_ACCURACY))
+            ((HIT_MOD + uint256(attacker.stats.dexterity) * 2) * (attacker.weapon.accuracy + BASE_ACCURACY))
                 + uint256(attacker.stats.luck) + uint256(attacker.stats.quickness) + uint256(attacker.stats.level)
         ) / HIT_MOD;
 
@@ -583,13 +583,10 @@ abstract contract Combat is MonsterFactory {
             if (attacker.isPraying()) {
                 isCritical = false;
             }
-            if (defender.isPraying()) {
-                isCritical = false;
-            }
-            if (attacker.isChargedUp()) {
-                // Note: damage is doubled, so don't make it a crit
-                isCritical = false;
-            }
+            // if (attacker.isChargedUp()) {
+            // Note: damage is doubled, so don't make it a crit
+            // isCritical = false;
+            // }
         }
         if (!isHit && defender.stats.class == CharacterClass.Bard) {
             isHit = true;
@@ -613,12 +610,12 @@ abstract contract Combat is MonsterFactory {
     {
         // "Hit" Modifier
         uint256 offense = (
-            (BASE_OFFENSE + uint256(attacker.stats.strength)) * attacker.weapon.baseDamage
+            (BASE_OFFENSE + uint256(attacker.stats.strength) * 2) * attacker.weapon.baseDamage
                 + uint256(attacker.stats.dexterity) + uint256(attacker.stats.level)
         ) / BASE_OFFENSE;
 
         uint256 defense = (
-            (BASE_DEFENSE + uint256(defender.stats.sturdiness)) * defender.armor.armorFactor
+            (BASE_DEFENSE + uint256(defender.stats.sturdiness) * 2) * defender.armor.armorFactor
                 + uint256(defender.stats.dexterity) + uint256(defender.stats.level) / 2
         ) / BASE_DEFENSE;
 
@@ -653,29 +650,25 @@ abstract contract Combat is MonsterFactory {
 
         if (attacker.isBlocking()) {
             if (attacker.stats.class == CharacterClass.Warrior) {
-                rawDamage /= 2;
+                rawDamage = rawDamage * 2 / 3;
             } else {
-                rawDamage /= 3;
+                rawDamage = rawDamage * 1 / 3;
             }
         }
 
         if (attacker.isPraying()) {
-            rawDamage = rawDamage * 3 / 4;
+            rawDamage = rawDamage * 2 / 3;
         }
         if (attacker.isChargedUp()) {
             rawDamage = (rawDamage * 3 / 2) + 10;
         }
 
-        if (attacker.stats.class == CharacterClass.Warrior) {
-            if (attacker.isBlocking()) {
-                rawDamage = rawDamage /= 2;
-            } else {
-                rawDamage = rawDamage * 105 / 100;
-            }
+        if (attacker.stats.class == CharacterClass.Warrior && !attacker.isBlocking()) {
+            rawDamage = rawDamage * 105 / 100;
         }
 
         if (defender.stats.class == CharacterClass.Bard) {
-            rawDamage = rawDamage * 120 / 100;
+            rawDamage = rawDamage * 110 / 100;
         }
         if (attacker.stats.class == CharacterClass.Bard) {
             rawDamage = rawDamage * 60 / 100;
@@ -721,7 +714,8 @@ abstract contract Combat is MonsterFactory {
         uint256 vanquishedWeaponBit = 1 << uint256(vanquished.stats.weaponID);
         uint256 weaponBitmap = uint256(winner.inventory.weaponBitmap);
         if (weaponBitmap & vanquishedWeaponBit == 0) {
-            emit Events.LootedNewWeapon(winner.areaID(), winner.id, vanquished.stats.weaponID, vanquished.weapon.name);
+            // emit Events.LootedNewWeapon(winner.areaID(), winner.id, vanquished.stats.weaponID,
+            // vanquished.weapon.name);
             weaponBitmap |= vanquishedWeaponBit;
             winner.inventory.weaponBitmap = uint64(weaponBitmap);
             winner.tracker.updateInventory = true;
@@ -731,7 +725,7 @@ abstract contract Combat is MonsterFactory {
         uint256 vanquishedArmorBit = 1 << uint256(vanquished.stats.armorID);
         uint256 armorBitmap = uint256(winner.inventory.armorBitmap);
         if (armorBitmap & vanquishedArmorBit == 0) {
-            emit Events.LootedNewArmor(winner.areaID(), winner.id, vanquished.stats.armorID, vanquished.armor.name);
+            // emit Events.LootedNewArmor(winner.areaID(), winner.id, vanquished.stats.armorID, vanquished.armor.name);
             armorBitmap |= vanquishedArmorBit;
             winner.inventory.armorBitmap = uint64(armorBitmap);
             winner.tracker.updateInventory = true;

@@ -311,6 +311,7 @@ abstract contract Character is Abilities {
         combatant.stats.combatantBitMap = uint64(0);
         if (!combatant.isDead()) {
             combatant.stats.health = uint16(combatant.maxHealth);
+            _forceClearTasks(combatant);
         }
         return combatant;
     }
@@ -345,6 +346,8 @@ abstract contract Character is Abilities {
         internal
         virtual
         returns (bool hasActiveCombatTask, address activeTask);
+
+    function _forceClearTasks(BattleNad memory combatant) internal virtual;
 
     function _restartCombatTask(BattleNad memory combatant) internal virtual returns (BattleNad memory, bool);
 
