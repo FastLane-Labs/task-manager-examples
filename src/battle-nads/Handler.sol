@@ -171,6 +171,7 @@ abstract contract Handler is Balances {
             }
         }
 
+        /*
         if (scheduledTask) {
             uint256 targetBlock = block.number + _cooldown(player.stats) + COMBAT_COLD_START_DELAY_ATTACKER;
             (player, scheduledTask) = _createOrRescheduleCombatTask(player, targetBlock);
@@ -178,6 +179,7 @@ abstract contract Handler is Balances {
                 emit Events.TaskNotScheduledInHandler(5, player.id, block.number, targetBlock);
             }
         }
+        */
 
         // Store area
         _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
@@ -530,6 +532,48 @@ abstract contract Handler is Balances {
         return (attacker, reschedule, nextExecutionBlock);
     }
 
+    // Starts blocking (an ability)
+    function handleBlock(
+        BattleNad memory attacker
+    )
+        external
+        CalledBySelfInTryCatch
+        NotWhileDead(attacker)
+        OnlyInCombatZones(attacker)
+        returns (BattleNad memory)
+    {
+        // Load ability
+        attacker.activeAbility = _loadAbility(attacker.id);
+
+        // Cannot use an ability while on cooldown
+        if (_isValidAddress(attacker.activeAbility.taskAddress)) {
+            bool reset;
+            (attacker, reset) = _checkAbilityTimeout(attacker);
+            if (!reset) {
+                revert Errors.AbilityStillOnCooldown(attacker.activeAbility.targetBlock);
+            }
+        }
+
+        // Load the new ability
+        attacker.activeAbility.ability = ability.ShieldWall;
+        attacker.activeAbility.targetIndex = uint8(0);
+        attacker.activeAbility.stage = uint8(1);
+
+        bool reschedule;
+        uint256 nextBlock;
+        (attacker, reschedule, nextBlock) = _handleAbility(attacker);
+
+        // Schedule the task if needed
+        if (reschedule) {
+            (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, nextBlock);
+            if (!reschedule) {
+                revert Errors.TaskNotRescheduled();
+            }
+        }
+
+        return attacker;
+    }
+
     // Starts an ability
     function handleAbility(
         BattleNad memory attacker,
@@ -797,8 +841,8 @@ abstract contract Handler is Balances {
 
     modifier NotWhileInCombat(BattleNad memory player) {
         {
+            (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
             if (player.isInCombat()) {
-                (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
                 player = _combatCheckLoop(player, false);
                 if (!hasCombatTask && !_isTask() && player.isInCombat()) {
                     bool restarted;

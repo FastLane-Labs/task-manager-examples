@@ -1,7 +1,7 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { Ability, StatusEffect, BattleNad } from "./Types.sol";
+import { Ability, StatusEffect, BattleNad, CharacterClass } from "./Types.sol";
 
 import { Classes } from "./Classes.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
@@ -63,19 +63,19 @@ abstract contract Abilities is Classes {
                 // Windup
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 3;
+                nextBlock = block.number + 1;
                 attacker.tracker.updateStats = true;
             } else if (stage == 2) {
                 attacker.stats.buffs |= uint8(1 << uint256(uint8(StatusEffect.ShieldWall)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 13;
+                nextBlock = attacker.stats.class == CharacterClass.Warrior ? block.number + 18 : block.number + 10;
                 attacker.tracker.updateStats = true;
             } else if (stage == 3) {
                 attacker.stats.buffs &= ~uint8(1 << uint256(uint8(StatusEffect.ShieldWall)));
                 nextStage = stage + 1;
                 reschedule = true;
-                nextBlock = block.number + 26;
+                nextBlock = attacker.stats.class == CharacterClass.Warrior ? block.number + 16 : block.number + 10;
                 attacker.tracker.updateStats = true;
             } else if (stage == 4) {
                 nextStage = 0;

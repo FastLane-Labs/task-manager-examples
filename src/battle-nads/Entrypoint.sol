@@ -147,10 +147,26 @@ contract BattleNadsEntrypoint is Getters {
         }
     }
 
+    function holdBlock(bytes32 characterID) external GasAbstracted {
+        // Load character
+        BattleNad memory player = _loadBattleNad(characterID, true);
+
+        // Validate character ownership
+        if (player.isMonster()) revert Errors.CantControlMonster(characterID);
+        if (player.owner != _abstractedMsgSender()) revert Errors.InvalidCharacterOwner(characterID, player.owner);
+
+        // Call primary function inside of a try/catch so that gas abstraction reimbursement will persist if the
+        // contract call fails
+        try this.handleBlock(player) returns (BattleNad memory result) {
+            _storeBattleNad(result);
+        } catch {
+            // Emit event
+        }
+    }
+
     function useAbility(bytes32 characterID, uint256 targetIndex, uint256 abilityIndex) external GasAbstracted {
         // Load character
         BattleNad memory player = _loadBattleNad(characterID, true);
-        player.owner = _loadOwner(characterID);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);
@@ -168,7 +184,6 @@ contract BattleNadsEntrypoint is Getters {
     function ascend(bytes32 characterID) external payable GasAbstracted {
         // Load character
         BattleNad memory player = _loadBattleNad(characterID, true);
-        player.owner = _loadOwner(characterID);
 
         // Validate character ownership
         if (player.isMonster()) revert Errors.CantControlMonster(characterID);

@@ -512,7 +512,7 @@ abstract contract Combat is MonsterFactory {
             (
                 (EVADE_MOD + uint256(defender.stats.dexterity) + uint256(defender.stats.luck))
                     * (defender.armor.flexibility + BASE_FLEXIBILITY)
-            ) + uint256(defender.stats.quickness) + uint256(defender.stats.level)
+            ) + uint256(defender.stats.quickness) + uint256(defender.stats.level)/2
         ) / EVADE_MOD;
 
         if (attacker.isMonster()) {
@@ -644,13 +644,26 @@ abstract contract Combat is MonsterFactory {
         }
 
         if (defender.isBlocking()) {
-            rawDamage /= 4;
+            if (attacker.stats.class == CharacterClass.Warrior) {
+                rawDamage /= 4;
+            } else {
+                rawDamage /= 3;
+            }
         }
+
+        if (attacker.isBlocking()) {
+            if (attacker.stats.class == CharacterClass.Warrior) {
+                rawDamage /= 2;
+            } else {
+                rawDamage /= 3;
+            }
+        }
+
         if (attacker.isPraying()) {
-            rawDamage /= 2;
+            rawDamage = rawDamage * 3 / 4;
         }
         if (attacker.isChargedUp()) {
-            rawDamage *= 2;
+            rawDamage = (rawDamage * 3 / 2) + 10;
         }
 
         if (attacker.stats.class == CharacterClass.Warrior) {

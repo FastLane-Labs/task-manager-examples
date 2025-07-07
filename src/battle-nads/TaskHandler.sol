@@ -325,6 +325,10 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         override
         returns (bool hasActiveCombatTask, address activeTask)
     {
+        if (!_isValidID(combatant.id)) {
+            return (hasActiveCombatTask, activeTask);
+        }
+        
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         activeTask = address(uint160(uint256(taskID)));
 
@@ -349,11 +353,17 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (_isValidAddress(activeTask)) {
             if (activeBlock > targetBlock) {
                 _clearActiveTask(combatant.id);
+                if (combatant.owner == key.owner && key.expiration > 0) {
+                    _updateSessionKey(activeTask, false, key.owner, 0);
+                }
                 activeTask = _EMPTY_ADDRESS;
             } else {
                 SessionKey memory key = _loadSessionKey(activeTask);
                 if (key.expiration <= block.number) {
                     _clearActiveTask(combatant.id);
+                    if (combatant.owner == key.owner && key.expiration > 0) {
+                        _updateSessionKey(activeTask, false, key.owner, 0);
+                    }
                     activeTask = _EMPTY_ADDRESS;
                 } else {
                     hasActiveCombatTask = true;
@@ -367,8 +377,14 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
                 if (key.expiration <= block.number) {
                     _clearAbility(combatant.id);
-                } else if (activeBlock > activeAbility.targetBlock + 2) {
+                    if (combatant.owner == key.owner && key.expiration > 0) {
+                        _updateSessionKey(activeAbility.taskAddress, false, key.owner, 0);
+                    }
+                } else if (activeBlock > activeAbility.targetBlock + 1) {
                     _clearAbility(combatant.id);
+                    if (combatant.owner == key.owner && key.expiration > 0) {
+                        _updateSessionKey(activeAbility.taskAddress, false, key.owner, 0);
+                    }
                 }
             }
         }
