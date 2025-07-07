@@ -328,7 +328,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (!_isValidID(combatant.id)) {
             return (hasActiveCombatTask, activeTask);
         }
-        
+
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         activeTask = address(uint160(uint256(taskID)));
 

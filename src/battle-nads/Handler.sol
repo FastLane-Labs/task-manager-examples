@@ -533,9 +533,7 @@ abstract contract Handler is Balances {
     }
 
     // Starts blocking (an ability)
-    function handleBlock(
-        BattleNad memory attacker
-    )
+    function handleBlock(BattleNad memory attacker)
         external
         CalledBySelfInTryCatch
         NotWhileDead(attacker)

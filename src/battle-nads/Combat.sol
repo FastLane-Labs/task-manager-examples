@@ -512,7 +512,7 @@ abstract contract Combat is MonsterFactory {
             (
                 (EVADE_MOD + uint256(defender.stats.dexterity) + uint256(defender.stats.luck))
                     * (defender.armor.flexibility + BASE_FLEXIBILITY)
-            ) + uint256(defender.stats.quickness) + uint256(defender.stats.level)/2
+            ) + uint256(defender.stats.quickness) + uint256(defender.stats.level) / 2
         ) / EVADE_MOD;
 
         if (attacker.isMonster()) {
