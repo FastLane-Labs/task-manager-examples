@@ -189,9 +189,9 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
     // Override the _minBondedShares value in GasRelayBase.sol so that the session key doesn't
     // take shMON that is committed to be used by the task manager for combat automation
     function _minBondedShares(address account) internal view override returns (uint256 shares) {
-        if (account == tx.origin) {
-            return _getBuyInAmountInShMON();
-        }
+        // if (account == tx.origin) {
+        //    return _getBuyInAmountInShMON();
+        // }
         return _getMinTaskReserveShares();
     }
 
