@@ -159,6 +159,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
     {
         // Load character
         BattleNad memory attacker = _loadBattleNadInTask(characterID);
+        attacker.activeAbility = _loadAbility(attacker.id);
 
         // Handle ability
         uint256 targetBlock;
@@ -325,8 +326,18 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             return;
         }
 
+        // Spawning
+        if (combatant.stats.x == 0 || combatant.stats.y == 0) {
+            return;
+        }
+
+        // Ascending
+        if (combatant.stats.health < 5) {
+            return;
+        }
+
         bytes32 taskID = _loadActiveTaskID(combatant.id);
-        activeTask = address(uint160(uint256(taskID)));
+        address activeTask = address(uint160(uint256(taskID)));
 
         if (!_isValidAddress(combatant.owner)) {
             combatant.owner = _loadOwner(combatant.id);

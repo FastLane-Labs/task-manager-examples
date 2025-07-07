@@ -295,7 +295,7 @@ abstract contract Character is Abilities {
         return combatant;
     }
 
-    function _exitCombat(BattleNad memory combatant) internal pure override returns (BattleNad memory) {
+    function _exitCombat(BattleNad memory combatant) internal override returns (BattleNad memory) {
         if (combatant.maxHealth == 0) {
             combatant = _addClassStatAdjustments(combatant);
         }
@@ -311,7 +311,7 @@ abstract contract Character is Abilities {
         combatant.stats.combatantBitMap = uint64(0);
         if (!combatant.isDead()) {
             combatant.stats.health = uint16(combatant.maxHealth);
-            _forceClearTasks(combatant);
+            // _forceClearTasks(combatant);
         }
         return combatant;
     }

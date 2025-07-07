@@ -321,7 +321,7 @@ abstract contract Storage {
         return currentStatus != _UNKILLED && currentStatus != _KILL_PROCESSED && _isValidID(currentStatus);
     }
 
-    function _exitCombat(BattleNad memory combatant) internal pure virtual returns (BattleNad memory);
+    function _exitCombat(BattleNad memory combatant) internal virtual returns (BattleNad memory);
 
     function _removeClassStatAdjustments(BattleNad memory combatant) internal pure virtual returns (BattleNad memory);
 

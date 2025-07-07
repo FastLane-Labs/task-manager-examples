@@ -47,7 +47,6 @@ abstract contract Combat is MonsterFactory {
         BattleNad memory defender
     )
         internal
-        pure
         returns (BattleNad memory, BattleNad memory)
     {
         uint256 attackerBitmap = uint256(attacker.stats.combatantBitMap);
@@ -90,9 +89,11 @@ abstract contract Combat is MonsterFactory {
         BattleNad memory sally
     )
         internal
-        pure
         returns (BattleNad memory, BattleNad memory)
     {
+        if (beatrice.isDead() || sally.isDead()) {
+            return (beatrice, sally);
+        }
         if (!beatrice.isInCombat()) {
             beatrice = _exitCombat(beatrice);
         }

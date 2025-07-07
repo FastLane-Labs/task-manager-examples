@@ -48,9 +48,9 @@ abstract contract Classes is Logs, Constants {
             }
         } else if (class == CharacterClass.Warrior) {
             if (abilityIndex == 1) {
-                ability = Ability.ShieldBash;
-            } else if (abilityIndex == 2) {
                 ability = Ability.ShieldWall;
+            } else if (abilityIndex == 2) {
+                ability = Ability.ShieldBash;
             } else {
                 revert Errors.AbilityDoesntExist();
             }

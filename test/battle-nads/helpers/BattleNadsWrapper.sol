@@ -162,7 +162,6 @@ contract BattleNadsWrapper is BattleNadsEntrypoint {
         BattleNad memory defender
     )
         public
-        pure
         returns (BattleNad memory, BattleNad memory)
     {
         return _disengageFromCombat(attacker, defender);

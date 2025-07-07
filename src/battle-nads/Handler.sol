@@ -320,9 +320,6 @@ abstract contract Handler is Balances {
             revert Errors.InvalidChatMessageLength(bytes(message).length);
         }
 
-        // Clear tasks leftover from previous area
-        _forceClearTasks(player);
-
         // Emit event with the message
         emit Events.ChatMessage(player.areaID(), player.id, message);
 
@@ -346,9 +343,6 @@ abstract contract Handler is Balances {
         NotWhileInCombat(player)
         returns (BattleNad memory)
     {
-        // Clear tasks leftover from previous area
-        _forceClearTasks(player);
-
         player.inventory = inventories[player.id];
 
         if (player.inventory.hasWeapon(weaponID)) {
@@ -372,9 +366,6 @@ abstract contract Handler is Balances {
         NotWhileInCombat(player)
         returns (BattleNad memory)
     {
-        // Clear tasks leftover from previous area
-        _forceClearTasks(player);
-
         player.inventory = inventories[player.id];
 
         if (player.inventory.hasArmor(armorID)) {
@@ -403,9 +394,6 @@ abstract contract Handler is Balances {
         NotWhileInCombat(player)
         returns (BattleNad memory)
     {
-        // Clear tasks leftover from previous area
-        _forceClearTasks(player);
-        
         uint256 newPoints = newStrength + newVitality + newDexterity + newQuickness + newSturdiness + newLuck;
         uint256 unspentAttributePoints = player.unallocatedStatPoints();
 

@@ -275,7 +275,9 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         BattleNad memory finalState = battleNads.getBattleNad(fighter);
         
         // Character should survive
+        console.log("a");
         assertTrue(finalState.stats.health > 0, "Character should survive");
+        console.log("b");
         
         // Combat should end OR be stalled (acceptable for ineffective classes)
         if (finalState.stats.combatants > 0) {
