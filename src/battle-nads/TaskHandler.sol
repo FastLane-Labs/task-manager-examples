@@ -181,7 +181,6 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
     function _loadBattleNadInTask(bytes32 characterID) internal view returns (BattleNad memory combatant) {
         // Load character
         combatant = _loadBattleNad(characterID, true);
-        combatant.activeTask.taskAddress = msg.sender;
         combatant.owner = _abstractedMsgSender();
         if (!_isTask()) {
             revert Errors.InvalidCaller(msg.sender);
@@ -346,8 +345,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (_isValidAddress(activeTask)) {
             _clearActiveTask(combatant.id);
             SessionKey memory key = _loadSessionKey(activeTask);
-            if (combatant.owner == key.owner && key.expiration > 0) {
-                _updateSessionKey(activeTask, false, key.owner, 0);
+            if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                _deactivateSessionKey(activeTask);
             }
         }
 
@@ -356,8 +355,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             if (_isValidAddress(activeAbility.taskAddress)) {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
                 _clearAbility(combatant.id);
-                if (combatant.owner == key.owner && key.expiration > 0) {
-                    _updateSessionKey(activeAbility.taskAddress, false, key.owner, 0);
+                if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                    _deactivateSessionKey(activeAbility.taskAddress);
                 }
             }
         }
@@ -397,16 +396,16 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             if (activeBlock > targetBlock) {
                 _clearActiveTask(combatant.id);
                 SessionKey memory key = _loadSessionKey(activeTask);
-                if (combatant.owner == key.owner && key.expiration > 0) {
-                    _updateSessionKey(activeTask, false, key.owner, 0);
+                if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                    _deactivateSessionKey(activeTask);
                 }
                 activeTask = _EMPTY_ADDRESS;
             } else {
                 SessionKey memory key = _loadSessionKey(activeTask);
                 if (key.expiration <= block.number) {
                     _clearActiveTask(combatant.id);
-                    if (combatant.owner == key.owner && key.expiration > 0) {
-                        _updateSessionKey(activeTask, false, key.owner, 0);
+                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(activeTask);
                     }
                     activeTask = _EMPTY_ADDRESS;
                 } else {
@@ -421,13 +420,13 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
                 if (key.expiration <= block.number) {
                     _clearAbility(combatant.id);
-                    if (combatant.owner == key.owner && key.expiration > 0) {
-                        _updateSessionKey(activeAbility.taskAddress, false, key.owner, 0);
+                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(activeAbility.taskAddress);
                     }
                 } else if (activeBlock > activeAbility.targetBlock + 1) {
                     _clearAbility(combatant.id);
-                    if (combatant.owner == key.owner && key.expiration > 0) {
-                        _updateSessionKey(activeAbility.taskAddress, false, key.owner, 0);
+                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(activeAbility.taskAddress);
                     }
                 }
             }
