@@ -353,6 +353,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (_isValidAddress(activeTask)) {
             if (activeBlock > targetBlock) {
                 _clearActiveTask(combatant.id);
+                SessionKey memory key = _loadSessionKey(activeTask);
                 if (combatant.owner == key.owner && key.expiration > 0) {
                     _updateSessionKey(activeTask, false, key.owner, 0);
                 }

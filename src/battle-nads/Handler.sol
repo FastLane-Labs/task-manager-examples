@@ -180,6 +180,7 @@ abstract contract Handler is Balances {
             }
         }
         */
+        _checkClearTasks(player);
 
         // Store area
         _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
@@ -553,7 +554,7 @@ abstract contract Handler is Balances {
         }
 
         // Load the new ability
-        attacker.activeAbility.ability = ability.ShieldWall;
+        attacker.activeAbility.ability = Ability.ShieldWall;
         attacker.activeAbility.targetIndex = uint8(0);
         attacker.activeAbility.stage = uint8(1);
 
@@ -839,8 +840,8 @@ abstract contract Handler is Balances {
 
     modifier NotWhileInCombat(BattleNad memory player) {
         {
-            (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
             if (player.isInCombat()) {
+                (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
                 player = _combatCheckLoop(player, false);
                 if (!hasCombatTask && !_isTask() && player.isInCombat()) {
                     bool restarted;

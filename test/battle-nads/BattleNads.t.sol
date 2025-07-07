@@ -118,7 +118,7 @@ contract BattleNadsTest is BattleNadsBaseTest {
         i = 0;	
 
         vm.prank(userSessionKey3);	
-        // battleNads.useAbility(character3, monster.stats.index, 2);	
+        battleNads.attack(character3, uint256(monster.stats.index));
 
         while (i < 100) {	
 
