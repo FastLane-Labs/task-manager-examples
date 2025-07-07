@@ -321,7 +321,16 @@ contract TaskHandler is Handler {
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         activeTask = address(uint160(uint256(taskID)));
 
-        ICustomTaskManager.LoadBalancer memory _loadBal = ICustomTaskManager(TASK_MANAGER).S_loadBalancer();
+        ICustomTaskManager.LoadBalancer memory _loadBal;
+        try ICustomTaskManager(TASK_MANAGER).S_loadBalancer() returns (ICustomTaskManager.LoadBalancer memory __loadBal)
+        {
+            _loadBal = __loadBal;
+        } catch (bytes memory err) {
+            emit Events.LoadBalancerLoadingError(err);
+
+            // Indicates external need for fix
+            return (combatant.isInCombat() && _isValidAddress(activeTask), activeTask);
+        }
 
         uint64 activeBlock = uint64(_loadBal.activeBlockMedium);
         uint64 targetBlock = uint64(uint256(taskID) >> 160);

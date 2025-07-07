@@ -28,4 +28,5 @@ library Events {
     event TaskNotScheduled(uint256 maxPayment, uint256 amountEstimated, uint256 targetBlock);
     event TaskNotScheduledInHandler(uint256 id, bytes32 characterID, uint256 currentBlock, uint256 targetBlock);
     event TaskNotScheduledInTaskHandler(uint256 id, bytes32 characterID, uint256 currentBlock, uint256 targetBlock);
+    event LoadBalancerLoadingError(bytes err);
 }

@@ -795,8 +795,8 @@ abstract contract Handler is Balances {
 
     modifier NotWhileInCombat(BattleNad memory player) {
         {
-            (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
             if (player.isInCombat()) {
+                (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
                 player = _combatCheckLoop(player, false);
                 if (!hasCombatTask && !_isTask() && player.isInCombat()) {
                     bool restarted;
