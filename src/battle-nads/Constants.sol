@@ -26,7 +26,6 @@ contract Constants {
     uint256 internal constant VITALITY_HEALTH_MODIFIER = 100;
     uint256 internal constant VITALITY_REGEN_MODIFIER = 3;
     uint256 internal constant STURDINESS_HEALTH_MODIFIER = 20;
-    uint256 internal constant HEALTH_ADJUSTMENT_PRECISION = 10_000_000;
 
     uint256 internal constant MONSTER_HEALTH_BASE = 1200;
     uint256 internal constant MONSTER_VITALITY_HEALTH_MODIFIER = 60;
@@ -69,9 +68,9 @@ contract Constants {
     uint256 internal constant STARTING_OCCUPANT_THRESHOLD = 16;
     uint8 internal constant NO_COMBAT_ZONE_SPACING = 5;
 
-    uint256 internal constant DAMAGE_DILUTION_FACTOR = 460;
-    uint256 internal constant ABILITY_DILUTION_FACTOR = 680;
-    uint256 internal constant HEALING_DILUTION_FACTOR = 320;
+    uint256 internal constant DAMAGE_DILUTION_FACTOR = 520;
+    uint256 internal constant ABILITY_DILUTION_FACTOR = 760;
+    uint256 internal constant HEALING_DILUTION_FACTOR = 340;
     uint256 internal constant DAMAGE_DILUTION_BASE = 1000;
 
     // BALANCES

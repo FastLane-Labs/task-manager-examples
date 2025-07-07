@@ -287,6 +287,10 @@ abstract contract Combat is MonsterFactory {
 
         // Get max health
         uint256 maxHealth = combatant.maxHealth;
+        if (maxHealth == 0) {
+            return (combatant, log);
+        }
+
         uint256 currentHealth = uint256(combatant.stats.health);
 
         if (currentHealth > maxHealth) {
@@ -299,7 +303,7 @@ abstract contract Combat is MonsterFactory {
             uint256 recovered = maxHealth > currentHealth ? maxHealth - currentHealth : 0;
             log.healthHealed = uint16(recovered);
 
-            emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
+            // emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
 
             combatant.stats.health = uint16(maxHealth);
             return (combatant, log);
@@ -325,7 +329,7 @@ abstract contract Combat is MonsterFactory {
         }
 
         if (combatant.isPraying()) {
-            targetHealthRegeneration *= 2;
+            targetHealthRegeneration = targetHealthRegeneration * 3 / 2;
         } else if (combatant.isPoisoned()) {
             targetHealthRegeneration /= 4;
         } else if (combatant.isCursed()) {
@@ -340,15 +344,15 @@ abstract contract Combat is MonsterFactory {
 
             log.healthHealed = uint16(recovered);
 
-            emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
+            // emit Events.CombatHealthRecovered(combatant.areaID(), combatant.id, recovered, maxHealth);
 
             currentHealth += recovered;
 
             combatant.stats.health = uint16(currentHealth);
         } else {
-            emit Events.CombatHealthRecovered(
-                combatant.areaID(), combatant.id, targetHealthRegeneration, currentHealth + targetHealthRegeneration
-            );
+            // emit Events.CombatHealthRecovered(
+            //    combatant.areaID(), combatant.id, targetHealthRegeneration, currentHealth + targetHealthRegeneration
+            // );
 
             log.healthHealed = uint16(targetHealthRegeneration);
 
@@ -687,7 +691,7 @@ abstract contract Combat is MonsterFactory {
             }
         }
 
-        rawDamage = (rawDamage + uint256(attacker.stats.level)) * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
+        rawDamage = (rawDamage + uint256(attacker.stats.level) * 2) * DAMAGE_DILUTION_FACTOR / DAMAGE_DILUTION_BASE;
         if (rawDamage > type(uint16).max) rawDamage = type(uint16).max - 1;
         return uint16(rawDamage);
     }

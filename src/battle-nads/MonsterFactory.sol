@@ -81,6 +81,8 @@ abstract contract MonsterFactory is CharacterFactory {
         // Build character
         // NOTE: Monster inventory isn't stored - they don't change weapons
         monster.stats = _createMonsterStats(monster.id, level, player.stats.depth, class);
+        monster = _addClassStatAdjustments(monster);
+        monster.stats.health = uint16(monster.maxHealth);
 
         // Flag for storage updates
         monster.tracker.updateStats = true;
@@ -98,17 +100,12 @@ abstract contract MonsterFactory is CharacterFactory {
         monster.tracker.updateInventory = true;
 
         // Increment the global balance tracker
-        BalanceTracker memory balanceTracker;
-        unchecked {
-            balanceTracker = balances;
-        }
+        BalanceTracker memory balanceTracker = balances;
 
         balanceTracker.monsterSumOfLevels += uint32(level);
         ++balanceTracker.monsterCount;
 
-        unchecked {
-            balances = balanceTracker;
-        }
+        balances = balanceTracker;
 
         return monster;
     }
@@ -220,7 +217,6 @@ abstract contract MonsterFactory is CharacterFactory {
         }
 
         // Fill out with default combat values
-        monsterSheet.health = uint16(_maxHealth(monsterSheet));
         monsterSheet.combatants = uint8(0);
         monsterSheet.nextTargetIndex = uint8(0);
         monsterSheet.combatantBitMap = uint64(0);

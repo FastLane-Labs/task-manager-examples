@@ -224,30 +224,6 @@ abstract contract Classes is Logs, Constants {
         return stats;
     }
 
-    function _classAdjustedMaxHealth(BattleNadStats memory stats, uint256 maxHealth) internal pure returns (uint256) {
-        uint256 level = uint256(stats.level) - uint256(stats.unspentAttributePoints);
-        if (stats.class == CharacterClass.Elite) {
-            maxHealth += ((level * 10) + 100);
-
-            // NOTE: Bosses are not meant to be solo-able
-        } else if (stats.class == CharacterClass.Boss) {
-            maxHealth += ((level * 150) + 1000);
-        } else if (stats.class == CharacterClass.Warrior) {
-            maxHealth += ((level * 30) + 50);
-        } else if (stats.class == CharacterClass.Rogue) {
-            // Rogue gets a free first attack that'll probably be a critical
-            // but only when out of combat
-            maxHealth -= ((level * 20) + 100);
-        } else if (stats.class == CharacterClass.Monk) {
-            maxHealth += ((level * 20));
-        } else if (stats.class == CharacterClass.Sorcerer) {
-            maxHealth -= ((level * 30) + 50);
-        } else if (stats.class == CharacterClass.Bard) {
-            maxHealth -= ((level * 40) + 100);
-        }
-        return maxHealth;
-    }
-
     // Return different values for view calls (for frontend data) than when executing
     function isExecuting() internal view returns (bool) {
         return msg.sender == address(this);

@@ -43,30 +43,38 @@ abstract contract Character is Abilities {
     }
 
     function _maxHealth(BattleNadStats memory stats) internal pure override returns (uint256 maxHealth) {
-        uint256 baseHealth;
-        if (
-            stats.class == CharacterClass.Basic || stats.class == CharacterClass.Elite
-                || stats.class == CharacterClass.Boss
-        ) {
-            baseHealth = MONSTER_HEALTH_BASE;
-        } else {
-            baseHealth = HEALTH_BASE;
-        }
-
-        maxHealth = baseHealth + (uint256(stats.vitality) * VITALITY_HEALTH_MODIFIER)
-            + (uint256(stats.sturdiness) * STURDINESS_HEALTH_MODIFIER);
-
-        maxHealth += uint256((uint256(stats.level)) * LEVEL_HEALTH_MODIFIER);
+        uint256 levelFactor = uint256(stats.level) - uint256(stats.unspentAttributePoints);
 
         if (stats.class == CharacterClass.Basic) {
-            maxHealth = maxHealth * 3 / 4;
+            maxHealth = MONSTER_HEALTH_BASE + (uint256(stats.vitality) * MONSTER_VITALITY_HEALTH_MODIFIER)
+                + (uint256(stats.sturdiness) * STURDINESS_HEALTH_MODIFIER);
         } else if (stats.class == CharacterClass.Elite) {
-            maxHealth = maxHealth * 4 / 5;
+            maxHealth = HEALTH_BASE + (uint256(stats.vitality) * MONSTER_VITALITY_HEALTH_MODIFIER)
+                + (uint256(stats.sturdiness) * STURDINESS_HEALTH_MODIFIER);
         } else if (stats.class == CharacterClass.Boss) {
-            maxHealth = maxHealth * 4 / 3;
+            maxHealth = HEALTH_BASE + (uint256(stats.vitality) * VITALITY_HEALTH_MODIFIER)
+                + (uint256(stats.sturdiness) * STURDINESS_HEALTH_MODIFIER);
+            maxHealth = (maxHealth + (levelFactor * 150)) * 4 / 3;
+        } else {
+            // Player classes
+            maxHealth = HEALTH_BASE + (uint256(stats.vitality) * VITALITY_HEALTH_MODIFIER)
+                + (uint256(stats.sturdiness) * STURDINESS_HEALTH_MODIFIER);
+
+            if (stats.class == CharacterClass.Warrior) {
+                maxHealth += (levelFactor * 30);
+            } else if (stats.class == CharacterClass.Rogue) {
+                maxHealth -= (levelFactor * 20);
+            } else if (stats.class == CharacterClass.Monk) {
+                maxHealth += (levelFactor * 10);
+            } else if (stats.class == CharacterClass.Sorcerer) {
+                maxHealth -= (levelFactor * 20);
+            } else if (stats.class == CharacterClass.Bard) {
+                maxHealth -= (levelFactor * 40);
+            }
         }
 
-        maxHealth = _classAdjustedMaxHealth(stats, maxHealth);
+        maxHealth += (levelFactor * LEVEL_HEALTH_MODIFIER);
+
         if (maxHealth > type(uint16).max - 1) maxHealth = type(uint16).max - 1;
     }
 
@@ -289,7 +297,7 @@ abstract contract Character is Abilities {
 
     function _exitCombat(BattleNad memory combatant) internal pure override returns (BattleNad memory) {
         if (combatant.maxHealth == 0) {
-            combatant.maxHealth = _maxHealth(combatant.stats);
+            combatant = _addClassStatAdjustments(combatant);
         }
         if (
             combatant.stats.combatantBitMap != 0 || uint256(combatant.stats.health) != combatant.maxHealth

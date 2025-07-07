@@ -407,7 +407,9 @@ abstract contract Handler is Balances {
         player.stats.sturdiness += uint8(newSturdiness);
         player.stats.luck += uint8(newLuck);
 
-        player.stats.health = uint16(_maxHealth(player.stats));
+        player = _addClassStatAdjustments(player);
+        player.stats.health = uint16(player.maxHealth);
+        player = _removeClassStatAdjustments(player);
 
         player.tracker.updateStats = true;
         _storeBattleNad(player);

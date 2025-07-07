@@ -11,6 +11,7 @@ import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 
 import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
+import { GeneralReschedulingTask } from "lib/fastlane-contracts/src/common/relay/tasks/GeneralReschedulingTask.sol";
 
 interface ICustomTaskManager {
     /// @notice Load balancing configuration for task scheduling
@@ -32,14 +33,20 @@ interface ICustomTaskManager {
 }
 
 // These are the entrypoint functions called by the tasks
-contract TaskHandler is Handler {
+contract TaskHandler is Handler, GeneralReschedulingTask {
     using StatSheet for BattleNad;
     using Names for BattleNad;
 
     address public immutable TASK_IMPLEMENTATION;
 
-    constructor(address taskManager, address shMonad) Handler(taskManager, shMonad) {
-        TASK_IMPLEMENTATION = GENERAL_TASK_IMPL();
+    constructor(
+        address taskManager,
+        address shMonad
+    )
+        Handler(taskManager, shMonad)
+        GeneralReschedulingTask(taskManager, shMonad)
+    {
+        TASK_IMPLEMENTATION = address(this);
     }
 
     // Called by a task
@@ -507,5 +514,33 @@ contract TaskHandler is Handler {
             taskDelay > MAX_ESTIMATED_TASK_DELAY ? MAX_ESTIMATED_TASK_DELAY_UINT8 : uint8(taskDelay);
 
         return combatTracker;
+    }
+
+    // Overrides of the GeneralReschedulingTask
+    // We're effectively setting BattleNads *as* the task implementation to save gas
+    function GENERAL_TASK_IMPL() public view override returns (address) {
+        return address(this);
+    }
+
+    function _matchCalldataHash(bytes memory data) internal view override returns (bool) {
+        return matchCalldataHash(address(this), data);
+    }
+
+    function _setRescheduleData(
+        address task,
+        uint256 maxPayment,
+        uint256 targetBlock,
+        bool setOwnerAsMsgSenderDuringTask
+    )
+        internal
+        override
+    {
+        setRescheduleData(task, maxPayment, targetBlock, setOwnerAsMsgSenderDuringTask);
+    }
+
+    function _targetSenderCheck() internal view override {
+        if (address(this) != _loadTaskTarget()) {
+            revert OnlyTargetCanSetReschedule();
+        }
     }
 }

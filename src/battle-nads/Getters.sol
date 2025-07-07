@@ -131,23 +131,24 @@ contract Getters is TaskHandler {
 
     // FOR THE LOVE OF ALL THAT IS GOOD, DO NOT CALL THIS ON CHAIN!
     function getBattleNadLite(bytes32 characterID) public view returns (BattleNadLite memory character) {
-        BattleNadStats memory stats = _loadBattleNadStats(characterID);
+        BattleNad memory fullCharacter = _loadBattleNad(characterID, true);
         character.id = characterID;
-        character.class = stats.class;
-        if (stats.isDead()) {
+        character.class = fullCharacter.stats.class;
+        if (fullCharacter.isDead()) {
             character.isDead = true;
+            character.health = 0;
+        } else {
+            character.health = uint256(fullCharacter.stats.health);
         }
-        stats = _handleAddClassStats(stats);
-        character.maxHealth = _maxHealth(stats);
-        character.health = uint256(stats.health);
-        character.buffs = uint256(stats.buffs);
-        character.debuffs = uint256(stats.debuffs);
-        character.level = uint256(stats.level);
-        character.index = uint256(stats.index);
-        character.combatantBitMap = uint256(stats.combatantBitMap);
+        character.maxHealth = fullCharacter.maxHealth;
+        character.buffs = uint256(fullCharacter.stats.buffs);
+        character.debuffs = uint256(fullCharacter.stats.debuffs);
+        character.level = uint256(fullCharacter.stats.level);
+        character.index = uint256(fullCharacter.stats.index);
+        character.combatantBitMap = uint256(fullCharacter.stats.combatantBitMap);
 
         if (!character.isDead) {
-            character = character.loadEquipment(stats);
+            character = character.loadEquipment(fullCharacter.stats);
         } else {
             character.health = 0;
         }
