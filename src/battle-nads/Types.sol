@@ -73,7 +73,8 @@ enum Ability {
     Pray,
     Smite,
     Fireball,
-    ChargeUp
+    ChargeUp,
+    CoolDown
 }
 
 struct BattleNadStats {

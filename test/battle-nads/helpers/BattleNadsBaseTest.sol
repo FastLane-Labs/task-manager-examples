@@ -333,7 +333,7 @@ contract BattleNadsBaseTest is BaseTest {
             return (2, true);
         } else if (class == CharacterClass.Warrior) {
             // Use ShieldBash (offensive) if in combat
-            return (1, true);
+            return (2, true);
         } else if (class == CharacterClass.Rogue) {
             // Use ApplyPoison (offensive) if in combat
             return (2, true);

@@ -181,10 +181,14 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
     function _loadBattleNadInTask(bytes32 characterID) internal view returns (BattleNad memory combatant) {
         // Load character
         combatant = _loadBattleNad(characterID, true);
-        combatant.owner = _abstractedMsgSender();
+        // combatant.owner = _abstractedMsgSender();
+        if (combatant.owner != _abstractedMsgSender()) {
+            revert Errors.InvalidCaller(msg.sender);
+        }
         if (!_isTask()) {
             revert Errors.InvalidCaller(msg.sender);
         }
+        return combatant;
     }
 
     function _createOrRescheduleCombatTask(
@@ -320,23 +324,25 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         return (combatant, false);
     }
 
-    function _forceClearTasks(BattleNad memory combatant) internal override {
+    function _forceClearTasks(BattleNad memory combatant) internal override returns (BattleNad memory) {
         if (!_isValidID(combatant.id)) {
-            return;
+            return combatant;
         }
 
         // Spawning
         if (combatant.stats.x == 0 || combatant.stats.y == 0) {
-            return;
+            return combatant;
         }
 
         // Ascending
         if (combatant.stats.health < 5) {
-            return;
+            return combatant;
         }
 
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         address activeTask = address(uint160(uint256(taskID)));
+
+        combatant.activeTask.taskAddress = activeTask;
 
         if (!_isValidAddress(combatant.owner)) {
             combatant.owner = _loadOwner(combatant.id);
@@ -344,6 +350,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
 
         if (_isValidAddress(activeTask)) {
             _clearActiveTask(combatant.id);
+            combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
+            combatant.tracker.updateActiveTask = false;
             SessionKey memory key = _loadSessionKey(activeTask);
             if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
                 _deactivateSessionKey(activeTask);
@@ -354,12 +362,14 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             AbilityTracker memory activeAbility = _loadAbility(combatant.id);
             if (_isValidAddress(activeAbility.taskAddress)) {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
-                _clearAbility(combatant.id);
+                combatant = _checkClearAbility(combatant);
                 if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
                     _deactivateSessionKey(activeAbility.taskAddress);
                 }
             }
         }
+
+        return combatant;
     }
 
     function _checkClearTasks(BattleNad memory combatant)
@@ -419,12 +429,12 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             if (_isValidAddress(activeAbility.taskAddress)) {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
                 if (key.expiration <= block.number) {
-                    _clearAbility(combatant.id);
+                    combatant = _checkClearAbility(combatant);
                     if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
                         _deactivateSessionKey(activeAbility.taskAddress);
                     }
-                } else if (activeBlock > activeAbility.targetBlock + 1) {
-                    _clearAbility(combatant.id);
+                } else if (activeBlock > activeAbility.targetBlock + 4) {
+                    combatant = _checkClearAbility(combatant);
                     if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
                         _deactivateSessionKey(activeAbility.taskAddress);
                     }
@@ -573,6 +583,13 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             taskDelay > MAX_ESTIMATED_TASK_DELAY ? MAX_ESTIMATED_TASK_DELAY_UINT8 : uint8(taskDelay);
 
         return combatTracker;
+    }
+
+    function _clearKey(BattleNad memory combatant, address activeTask) internal override {
+        SessionKey memory key = _loadSessionKey(activeTask);
+        if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+            _deactivateSessionKey(activeTask);
+        }
     }
 
     // Overrides of the GeneralReschedulingTask

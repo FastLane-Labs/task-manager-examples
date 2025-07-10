@@ -64,7 +64,7 @@ contract Constants {
     uint256 internal constant MAX_MONSTERS_PER_AREA = 32;
     uint256 internal constant DEFAULT_AGGRO_RANGE = 10; // for existing monsters
     uint256 internal constant MAX_AGGRO_RANGE = 16; // for existing monsters
-    uint256 internal constant DEFAULT_AGGRO_CHANCE = 16; // out of 128 - spawns a new monster
+    uint256 internal constant DEFAULT_AGGRO_CHANCE = 18; // out of 255 - spawns a new monster
     uint256 internal constant STARTING_OCCUPANT_THRESHOLD = 16;
     uint8 internal constant NO_COMBAT_ZONE_SPACING = 5;
 

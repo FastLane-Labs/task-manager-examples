@@ -95,10 +95,14 @@ abstract contract Combat is MonsterFactory {
             return (beatrice, sally);
         }
         if (!beatrice.isInCombat()) {
-            beatrice = _exitCombat(beatrice);
+            beatrice = _outOfCombatStatUpdate(beatrice);
         }
         if (!sally.isInCombat()) {
-            sally = _exitCombat(sally);
+            sally = _outOfCombatStatUpdate(sally);
+        }
+
+        if (sally.stats.index == beatrice.stats.index) {
+            return (beatrice, sally);
         }
 
         uint256 beatriceBitmap = uint256(beatrice.stats.combatantBitMap);
@@ -143,8 +147,9 @@ abstract contract Combat is MonsterFactory {
         returns (bool)
     {
         if (attacker.isDead() || defender.isDead()) return false;
+        if (attacker.stats.index == defender.stats.index) return false;
         if (defender.isMonster()) return true;
-        return attacker.stats.level + defender.stats.sumOfCombatantLevels <= defender.stats.level * 2;
+        return attacker.stats.level + defender.stats.sumOfCombatantLevels <= (defender.stats.level * 2) + 1;
     }
 
     function _notYetInCombat(BattleNad memory attacker, BattleNad memory defender) internal pure returns (bool) {
@@ -157,7 +162,7 @@ abstract contract Combat is MonsterFactory {
         uint8 excludedIndex
     )
         internal
-        returns (BattleNad memory, BattleNad memory defender, BattleArea memory)
+        returns (BattleNad memory, BattleNad memory, BattleArea memory)
     {
         attacker.tracker.updateStats = true;
 
@@ -175,21 +180,28 @@ abstract contract Combat is MonsterFactory {
 
         // Monsters can attack any player once they're aggro'd but not each other
         if (attacker.isMonster()) {
-            combatantBitmap |= uint256(area.playerBitMap);
+            combatantBitmap &= uint256(area.playerBitMap);
             combatantBitmap &= ~uint256(area.monsterBitMap);
         }
         // Remove any excluded index
         if (excludedIndex != 0) {
-            combatantBitmap &= ~(1 << excludedIndex);
+            combatantBitmap &= ~(1 << uint256(excludedIndex));
         }
+
+        // Remove attacker
+        combatantBitmap &= ~(1 << attackerIndex);
 
         if (combatantBitmap == 0) {
-            return (_exitCombat(attacker), defender, area);
+            attacker = _exitCombat(attacker);
+            BattleNad memory nullDefender;
+            return (attacker, nullDefender, area);
         }
 
-        BattleNadStats memory nullStats;
         targetIndex = uint256(attacker.stats.nextTargetIndex);
-        if (targetIndex == 0) targetIndex = 1;
+        if (targetIndex == attackerIndex) targetIndex = 0;
+        if (targetIndex == 0) {
+            targetIndex = attackerIndex == 1 ? 2 : 1;
+        }
 
         do {
             targetBit = 1 << targetIndex;
@@ -199,7 +211,8 @@ abstract contract Combat is MonsterFactory {
             if (combatantBitmap & targetBit != 0) {
                 // Load the defender and make sure defender is in combat with attacker and not a new player
                 // in that slot.
-                defender = _loadCombatant(attacker.stats.depth, attacker.stats.x, attacker.stats.y, targetIndex);
+                BattleNad memory defender =
+                    _loadCombatant(attacker.stats.depth, attacker.stats.x, attacker.stats.y, targetIndex);
 
                 // CASE: defender didnt load
                 if (!_isValidID(defender.id)) {
@@ -245,13 +258,12 @@ abstract contract Combat is MonsterFactory {
                     // CASE: valid target
                 } else {
                     attacker.stats.combatantBitMap = uint64(combatantBitmap);
+                    attacker.stats.nextTargetIndex = uint8(targetIndex);
                     return (attacker, defender, area);
                 }
 
                 // Remove from bitmap and clear out defender memory struct if it isn't a match
                 combatantBitmap &= ~targetBit;
-                defender.id = bytes32(0);
-                defender.stats = nullStats;
             }
             // Increment loop
             unchecked {
@@ -259,15 +271,19 @@ abstract contract Combat is MonsterFactory {
                     targetIndex = 1;
                 }
             }
-            attacker.stats.nextTargetIndex = uint8(targetIndex);
         } while (combatantBitmap != 0 && gasleft() > 110_000);
 
         if (combatantBitmap == 0) {
             attacker = _exitCombat(attacker);
         } else {
             attacker.stats.combatantBitMap = uint64(combatantBitmap);
+            attacker.stats.nextTargetIndex = uint8(targetIndex);
+            if (attacker.stats.nextTargetIndex == attacker.stats.index) {
+                if (++attacker.stats.nextTargetIndex > 64) attacker.stats.nextTargetIndex = 1;
+            }
         }
-        return (attacker, defender, area);
+        BattleNad memory nullDefender;
+        return (attacker, nullDefender, area);
     }
 
     function _regenerateHealth(

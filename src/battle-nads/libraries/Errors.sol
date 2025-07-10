@@ -54,4 +54,5 @@ library Errors {
     error NameTooShort(uint256 nameLength);
     error AbilityCantHaveTarget();
     error CantFightInNoCombatZone(uint8 x, uint8 y, uint8 depth);
+    error CannotAttackSelf(uint8 index);
 }

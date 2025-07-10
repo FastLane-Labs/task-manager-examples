@@ -46,8 +46,7 @@ abstract contract Instances is Combat {
             isBossEncounter ? uint256(area.monsterCount) == 0 : uint256(area.monsterCount) < MAX_MONSTERS_PER_AREA;
         uint256 monsterBitmap = uint256(area.monsterBitMap);
         uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
-        uint256 index = uint256(player.stats.index);
-        uint256 indexBit;
+        uint256 playerIndex = uint256(player.stats.index);
 
         // See if the player is too high level to generate aggro
         if (aggroRange <= uint256(player.stats.level)) {
@@ -60,46 +59,45 @@ abstract contract Instances is Combat {
             if (player.stats.depth < player.stats.level) {
                 aggroRange /= 2;
             } else if (player.stats.depth > player.stats.level) {
-                aggroRange += uint256(player.stats.depth) - uint256(player.stats.level);
+                aggroRange += (uint256(player.stats.depth) - uint256(player.stats.level));
             }
 
             if (aggroRange > MAX_AGGRO_RANGE) aggroRange = MAX_AGGRO_RANGE;
         }
 
+        uint256 targetIndexBit;
+        uint256 targetIndex = playerIndex;
+
         do {
             // Pre-Increment loop (monster can't be on same index as player)
             unchecked {
-                ++index;
-                if (index > 63) {
-                    index = 1;
+                if (++targetIndex > 63) {
+                    targetIndex = 1;
                 }
             }
 
             // Find empty spot
-            indexBit = 1 << index;
+            targetIndexBit = 1 << targetIndex;
 
-            // CASE: Someone is at that index
-            if (combinedBitmap & indexBit != 0) {
-                // CASE: A monster is at that index
-                if (monsterBitmap & indexBit != 0) {
-                    // We're still in aggro range, so aggro it
-                    return (uint8(index), false);
-                }
+            // CASE: A monster is at that index
+            if (monsterBitmap & targetIndexBit != 0) {
+                // We're still in aggro range, so aggro it
+                return (uint8(targetIndex), false);
 
                 // CASE: Nobody is at that index, so we check to see if we spawn a new mob
                 // Make sure we aren't spawning too many mobs
-            } else if (canSpawnNewMonsters) {
+            } else if (canSpawnNewMonsters && (combinedBitmap & targetIndexBit == 0)) {
                 uint256 aggroThreshold = DEFAULT_AGGRO_CHANCE + (aggroRange / 2);
-                uint256 aggroRoll = (uint256(0xff) & uint256(uint8(uint256(randomSeed >> (aggroRange * 8))))) / 2;
+                uint256 aggroRoll = (uint256(0xff) & uint256(uint8(uint256(randomSeed >> (aggroRange * 8))))) / 6;
                 if (aggroRoll < aggroThreshold) {
-                    return (uint8(index), true);
+                    return (uint8(targetIndex), true);
                 }
             }
 
             unchecked {
                 --aggroRange;
             }
-        } while (aggroRange > 0);
+        } while (aggroRange > 0 && targetIndex != playerIndex);
 
         // Default case - no aggro
         return (0, false);
@@ -110,7 +108,15 @@ abstract contract Instances is Combat {
         return combinedBitmap & (1 << index) != 0;
     }
 
-    function _findNextIndex(BattleArea memory area, bytes32 randomSeed) internal view returns (uint8 newIndex) {
+    function _findNextIndex(
+        BattleArea memory area,
+        bytes32 randomSeed
+    )
+        internal
+        view
+        override
+        returns (uint8 newIndex)
+    {
         uint256 index = (uint256(0xff) & uint256(uint8(uint256(randomSeed >> 24)))) / 4;
         uint256 combinedBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
         uint256 indexBit;
@@ -280,6 +286,7 @@ abstract contract Instances is Combat {
     function _unrandomSpawnCoordinates(BattleNad memory player)
         internal
         view
+        override
         returns (BattleArea memory area, uint8 x, uint8 y)
     {
         // Generate seed

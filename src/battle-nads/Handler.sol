@@ -11,6 +11,8 @@ import { Events } from "./libraries/Events.sol";
 import { Equipment } from "./libraries/Equipment.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 
+import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
+
 abstract contract Handler is Balances {
     using Equipment for BattleNad;
     using StatSheet for BattleNad;
@@ -34,8 +36,6 @@ abstract contract Handler is Balances {
     {
         BattleNad memory character =
             _buildNewCharacter(owner, name, strength, vitality, dexterity, quickness, sturdiness, luck);
-        character.inventory = character.inventory.addWeaponToInventory(character.stats.weaponID);
-        character.inventory = character.inventory.addArmorToInventory(character.stats.armorID);
         character = _allocatePlayerBuyIn(character);
 
         bool scheduled;
@@ -55,8 +55,9 @@ abstract contract Handler is Balances {
     {
         // Find spawn point
         (BattleArea memory area, uint8 x, uint8 y) = _unrandomSpawnCoordinates(player);
+
         uint8 depth = 1;
-        if (x == 0 && y == 0) {
+        if (x == 0 || y == 0) {
             return (player, true, block.number + SPAWN_DELAY);
         }
 
@@ -73,7 +74,7 @@ abstract contract Handler is Balances {
         player.tracker.updateStats = true;
 
         // Store the updated area
-        _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
+        _storeArea(area, depth, x, y);
 
         // Return
         return (player, false, 0);
@@ -103,7 +104,9 @@ abstract contract Handler is Balances {
         }
 
         // Clear tasks leftover from previous area
-        _forceClearTasks(player);
+        player = _exitCombat(player);
+        player.stats.nextTargetIndex = 0;
+        player.tracker.updateStats = true;
 
         // Store previous depth (only spawn boss monster when trying to go down, not up)
         uint8 prevDepth = player.stats.depth;
@@ -118,7 +121,7 @@ abstract contract Handler is Balances {
 
         // Return early if it's a no combat zone
         if (_isNoCombatZone(newX, newY, newDepth)) {
-            _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
+            _storeArea(area, newDepth, newX, newY);
             return player;
         }
 
@@ -130,7 +133,7 @@ abstract contract Handler is Balances {
 
         // If there's no monster, return early
         if (monsterIndex == 0) {
-            _storeArea(area, player.stats.depth, player.stats.x, player.stats.y);
+            _storeArea(area, newDepth, newX, newY);
             return player;
         }
 
@@ -221,18 +224,43 @@ abstract contract Handler is Balances {
         OnlyInCombatZones(attacker)
         returns (BattleNad memory)
     {
+        if (targetIndex == uint256(attacker.stats.index)) {
+            uint256 attackerBitmap = uint256(attacker.stats.combatantBitMap);
+            uint256 targetBit = 1 << targetIndex;
+            if (attackerBitmap & targetBit != 0) {
+                attackerBitmap &= ~targetBit;
+                attacker.stats.combatantBitMap = uint64(attackerBitmap);
+                attacker.tracker.updateStats = true;
+                if (!attacker.isInCombat()) {
+                    attacker = _exitCombat(attacker);
+                }
+            }
+            return attacker;
+            // revert Errors.CannotAttackSelf(attacker.stats.index);
+        }
         // Load the target
         BattleNad memory defender =
             _loadCombatant(attacker.stats.depth, attacker.stats.x, attacker.stats.y, targetIndex);
 
-        if (!_isValidID(defender.id)) {
-            revert Errors.InvalidTargetIndex(targetIndex);
+        if (!_isValidID(defender.id) || !_canEnterMutualCombatToTheDeath(attacker, defender) || defender.isDead()) {
+            uint256 attackerBitmap = uint256(attacker.stats.combatantBitMap);
+            uint256 targetBit = 1 << uint256(defender.stats.index);
+            if (attackerBitmap & targetBit != 0) {
+                attackerBitmap &= ~targetBit;
+                attacker.stats.combatantBitMap = uint64(attackerBitmap);
+                attacker.tracker.updateStats = true;
+                if (!attacker.isInCombat()) {
+                    attacker = _exitCombat(attacker);
+                }
+            }
+            return attacker;
+            // revert Errors.InvalidTargetIndex(targetIndex);
         }
 
         // Revert if we can't attack defender because of level cap
-        if (!_canEnterMutualCombatToTheDeath(attacker, defender)) {
-            revert Errors.CannotAttackDueToLevelCap();
-        }
+        //if (!_canEnterMutualCombatToTheDeath(attacker, defender)) {
+        //    revert Errors.CannotAttackDueToLevelCap();
+        //}
 
         BattleArea memory area = _loadArea(attacker.stats.depth, attacker.stats.x, attacker.stats.y);
 
@@ -446,11 +474,13 @@ abstract contract Handler is Balances {
         // Start a combat log
         Log memory log = _startCombatLog(attacker, defender);
 
-        if (!_isValidID(defender.id)) {
+        if (!_isValidID(defender.id) || defender.isDead()) {
             (attacker, log) = _regenerateHealth(attacker, log);
 
             // CASE: No combatants remain
             if (!attacker.isInCombat()) {
+                attacker = _checkClearAbility(attacker);
+
                 reschedule = false;
                 nextExecutionBlock = 0;
 
@@ -497,7 +527,10 @@ abstract contract Handler is Balances {
 
             // Only update defender reference if we got a valid new target
             // This prevents the bug where the wrong player would be stored later
-            if (_isValidID(newDefender.id) && newDefender.id != defender.id && newDefender.id != attacker.id) {
+            if (
+                _isValidID(newDefender.id) && newDefender.id != defender.id && newDefender.id != attacker.id
+                    && !defender.isDead()
+            ) {
                 defender = newDefender;
             } else {
                 // Set defender to empty so we don't store it again at line 526
@@ -625,6 +658,7 @@ abstract contract Handler is Balances {
     {
         // Verify that attacker is still alive
         if (attacker.isDead()) {
+            attacker = _checkClearAbility(attacker);
             // Process death in combat task
             return (attacker, false, 0);
         }
@@ -640,11 +674,35 @@ abstract contract Handler is Balances {
 
             if (!_isValidID(defender.id)) {
                 // Return early if target cant be found
+                uint256 attackerBitmap = uint256(attacker.stats.combatantBitMap);
+                uint256 targetBit = 1 << uint256(defender.stats.index);
+                if (attackerBitmap & targetBit != 0) {
+                    attackerBitmap &= ~targetBit;
+                    attacker.stats.combatantBitMap = uint64(attackerBitmap);
+                    attacker.tracker.updateStats = true;
+                }
+                if (!attacker.isInCombat()) {
+                    attacker = _exitCombat(attacker);
+                } else {
+                    attacker = _checkClearAbility(attacker);
+                }
                 return (attacker, false, 0);
             }
             defender = _loadBattleNad(defender.id, true);
 
             if (defender.isDead()) {
+                uint256 attackerBitmap = uint256(attacker.stats.combatantBitMap);
+                uint256 targetBit = 1 << uint256(defender.stats.index);
+                if (attackerBitmap & targetBit != 0) {
+                    attackerBitmap &= ~targetBit;
+                    attacker.stats.combatantBitMap = uint64(attackerBitmap);
+                    attacker.tracker.updateStats = true;
+                }
+                if (!attacker.isInCombat()) {
+                    attacker = _exitCombat(attacker);
+                } else {
+                    attacker = _checkClearAbility(attacker);
+                }
                 // Return early if target cant be found - process their death in regular combat task.
                 return (attacker, false, 0);
             }
@@ -686,6 +744,14 @@ abstract contract Handler is Balances {
             } else {
                 // Only store if defender is still alive
                 _storeBattleNad(defender);
+            }
+        }
+
+        if (!reschedule) {
+            if (!attacker.isInCombat()) {
+                attacker = _exitCombat(attacker);
+            } else {
+                attacker = _checkClearAbility(attacker);
             }
         }
 
@@ -750,7 +816,10 @@ abstract contract Handler is Balances {
 
         // Can't have an index of 0, start i at 1.
         uint256 targetIndex = uint256(combatant.stats.nextTargetIndex);
-        if (targetIndex == 0) targetIndex = 1;
+        if (targetIndex == uint256(combatant.stats.index)) targetIndex = 0;
+        if (targetIndex == 0) {
+            targetIndex = uint256(combatant.stats.index) == 1 ? 2 : 1;
+        }
 
         while (gasleft() > 215_000 && combatantBitmap != 0) {
             uint256 indexBit = 1 << targetIndex;

@@ -356,7 +356,7 @@ abstract contract Abilities is Classes {
         uint256 targetBlock = uint256(attacker.activeAbility.targetBlock);
 
         // If an egregious amount of time has passed, unblock abilities
-        if (block.number > targetBlock + 200) {
+        if (block.number > targetBlock + 50) {
             attacker.activeAbility.stage = uint8(0);
             attacker.activeAbility.targetBlock = uint64(0);
             attacker.activeAbility.taskAddress = _EMPTY_ADDRESS;

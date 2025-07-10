@@ -1,7 +1,9 @@
 //SPDX-License-Identifier: Unlicensed
 pragma solidity 0.8.28;
 
-import { BattleNad, BattleNadStats, BattleArea, Inventory, StorageTracker, Log, CharacterClass } from "./Types.sol";
+import {
+    BattleNad, BattleNadStats, BattleArea, Inventory, StorageTracker, Log, CharacterClass, Ability
+} from "./Types.sol";
 
 import { Constants } from "./Constants.sol";
 import { Errors } from "./libraries/Errors.sol";
@@ -9,6 +11,8 @@ import { Abilities } from "./Abilities.sol";
 import { Equipment } from "./libraries/Equipment.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
+
+import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 abstract contract Character is Abilities {
     using Equipment for BattleNad;
@@ -295,23 +299,47 @@ abstract contract Character is Abilities {
         return combatant;
     }
 
-    function _exitCombat(BattleNad memory combatant) internal override returns (BattleNad memory) {
+    function _outOfCombatStatUpdate(BattleNad memory combatant) internal pure returns (BattleNad memory) {
         if (combatant.maxHealth == 0) {
             combatant = _addClassStatAdjustments(combatant);
         }
-        if (
-            combatant.stats.combatantBitMap != 0 || uint256(combatant.stats.health) != combatant.maxHealth
-                || combatant.stats.combatants != 0 || combatant.stats.sumOfCombatantLevels != 0
-        ) {
-            combatant.tracker.updateStats = true;
-        }
+        combatant.stats.health = uint16(combatant.maxHealth);
         combatant.stats.combatants = 0;
         combatant.stats.sumOfCombatantLevels = 0;
         combatant.stats.nextTargetIndex = 0;
         combatant.stats.combatantBitMap = uint64(0);
-        if (!combatant.isDead()) {
-            combatant.stats.health = uint16(combatant.maxHealth);
-            // _forceClearTasks(combatant);
+        combatant.tracker.updateStats = true;
+        return combatant;
+    }
+
+    function _exitCombat(BattleNad memory combatant) internal override returns (BattleNad memory) {
+        if (combatant.stats.health > 3) {
+            combatant = _outOfCombatStatUpdate(combatant);
+
+            combatant.activeTask.taskAddress = _loadActiveTaskAddress(combatant.id);
+            if (_isValidAddress(combatant.activeTask.taskAddress)) {
+                _clearKey(combatant, combatant.activeTask.taskAddress);
+            }
+            _clearActiveTask(combatant.id);
+            combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
+            combatant.tracker.updateActiveTask = false;
+        }
+
+        combatant = _checkClearAbility(combatant);
+
+        return combatant;
+    }
+
+    function _checkClearAbility(BattleNad memory combatant) internal returns (BattleNad memory) {
+        if (
+            _isValidAddress(combatant.activeAbility.taskAddress) || combatant.activeAbility.targetBlock > 0
+                || combatant.activeAbility.stage > 0
+        ) {
+            combatant.activeAbility.taskAddress = _EMPTY_ADDRESS;
+            combatant.activeAbility.targetBlock = uint64(0);
+            combatant.activeAbility.stage = 0;
+            combatant.activeAbility.ability = Ability.None;
+            _clearAbility(combatant.id);
         }
         return combatant;
     }
@@ -347,7 +375,7 @@ abstract contract Character is Abilities {
         virtual
         returns (bool hasActiveCombatTask, address activeTask);
 
-    function _forceClearTasks(BattleNad memory combatant) internal virtual;
+    function _forceClearTasks(BattleNad memory combatant) internal virtual returns (BattleNad memory);
 
     function _restartCombatTask(BattleNad memory combatant) internal virtual returns (BattleNad memory, bool);
 
@@ -359,4 +387,6 @@ abstract contract Character is Abilities {
         internal
         virtual
         returns (BattleNad memory, BattleNad memory, Log memory);
+
+    function _clearKey(BattleNad memory combatant, address activeTask) internal virtual;
 }

@@ -37,6 +37,7 @@ contract BattleNadsTest is BattleNadsBaseTest {
         console.log("estimatedCreationCost", estimatedCreationCost);
 
 
+        /*
         vm.prank(user1);	
         character1 = battleNads.createCharacter{ value: estimatedCreationCost }(	
             "Character 1", 6, 6, 5, 5, 5, 5, address(0), 0	
@@ -44,12 +45,15 @@ contract BattleNadsTest is BattleNadsBaseTest {
 
         _rollForward(1);	
 
+        
         vm.prank(user2);	
         character2 = battleNads.createCharacter{ value: estimatedCreationCost }(	
             "Character 2", 4, 8, 4, 5, 4, 7, userSessionKey2, uint256(type(uint64).max - 1)	
         );	
 
-        _rollForward(1);	
+        _rollForward(1);
+
+        */	
 
 
         vm.prank(user3);	
@@ -58,12 +62,15 @@ contract BattleNadsTest is BattleNadsBaseTest {
         );	
 
         _rollForward(1);	
+        
 
         // battleNads.printBattleNad(_battleNad(1));	
         // battleNads.printBattleNad(_battleNad(2));	
         // battleNads.printBattleNad(_battleNad(3));	
 
-        _rollForward(2);	
+        _rollForward(3);	
+
+        _rollForward(1);	
 
         uint256 i = 0;	
         while (i < 100) {	

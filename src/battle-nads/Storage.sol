@@ -238,7 +238,9 @@ abstract contract Storage {
     }
 
     function _storeBattleNad(BattleNad memory character) internal {
-        if (!_isValidID(character.id)) return;
+        if (!_isValidID(character.id)) {
+            return;
+        }
         if (character.tracker.died) {
             character.stats.health = 0;
         }
