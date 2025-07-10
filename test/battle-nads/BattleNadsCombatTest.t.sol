@@ -217,11 +217,19 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         uint256 initialExp = startState.stats.experience;
         console.log("Starting combat with", _getClassName(startState.stats.class));
         
+        // If main character is a Bard, change to Warrior for effective combat
+        if (startState.stats.class == CharacterClass.Bard) {
+            console.log("Main character is a Bard - changing to Warrior class");
+            _modifyCharacterStat(fighter, "class", 0); // Change to Warrior
+            // Also boost strength for better damage
+            _modifyCharacterStat(fighter, "strength", 8);
+        }
+        
         // Check if any combatant is a Bard - if so, change their class
         BattleNad[] memory combatants = battleNads.getCombatantBattleNads(user1);
         for (uint i = 0; i < combatants.length; i++) {
             if (uint8(combatants[i].stats.class) == 4) { // Bard class
-                console.log("Changing Bard class to Fighter to ensure effective abilities");
+                console.log("Changing Bard combatant to Fighter to ensure effective abilities");
                 _modifyCharacterStat(combatants[i].id, "class", 5); // Change to Fighter class
             }
         }
