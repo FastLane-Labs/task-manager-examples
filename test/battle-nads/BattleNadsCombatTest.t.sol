@@ -206,6 +206,9 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
     function test_Combat_CompleteResolution_WithAbilities() public {
         bytes32 fighter = character1;
         
+        // Boost vitality to ensure survivability with new balance changes
+        _modifyCharacterStat(fighter, "vitality", 10);
+        
         // Enter combat
         bool combatStarted = _triggerRandomCombat(fighter);
         assertTrue(combatStarted, "Should enter combat");
@@ -405,8 +408,9 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         _modifyCharacterStat(character1, "vitality", 20);
         
         BattleNad memory character = _battleNad(1);
+        // Manually set max health since we're testing regeneration logic
         character.maxHealth = 100;
-        //character.stats.health = 50;
+        character.stats.health = 50; // Set health to 50 for testing
         
 
         Log memory log;
@@ -422,9 +426,9 @@ contract BattleNadsCombatTest is BattleNadsBaseTest, Constants {
         
         BattleNad memory inCombatChar = _battleNad(1);
         inCombatChar.maxHealth = 100;
-        //inCombatChar.stats.health = 80;
-        //inCombatChar.stats.combatants = 1;
-        //inCombatChar.stats.combatantBitMap = 2;
+        inCombatChar.stats.health = 80;
+        inCombatChar.stats.combatants = 1;
+        inCombatChar.stats.combatantBitMap = 2;
         
         Log memory combatLog;
         (BattleNad memory combatRegenChar, Log memory combatRegenLog) = battleNads.testRegenerateHealth(inCombatChar, combatLog);
