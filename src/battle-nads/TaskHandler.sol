@@ -13,6 +13,8 @@ import { StatSheet } from "./libraries/StatSheet.sol";
 import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 import { GeneralReschedulingTask } from "lib/fastlane-contracts/src/common/relay/tasks/GeneralReschedulingTask.sol";
 
+// import {console} from "forge-std/console.sol";
+
 interface ICustomTaskManager {
     /// @notice Load balancing configuration for task scheduling
     /// @dev Manages task distribution across blocks
@@ -68,9 +70,9 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         (attacker, reschedule, targetBlock) = _handleCombatTurn(attacker);
 
         // If attacker exited combat then the keys are invalidated at that point
-        if (attacker.isInCombat()) {
-            reschedule = _validatePersistOwnerDuringTask(attacker, false);
-        }
+        //if (attacker.isInCombat()) {
+        //    reschedule = _validatePersistOwnerDuringTask(attacker, false);
+        //}
 
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
@@ -80,8 +82,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
                 if (attacker.isMonster()) {
                     attacker.owner = _EMPTY_ADDRESS;
                     attacker.tracker.updateOwner = true;
-                    _clearActiveTask(characterID);
                 }
+                _clearActiveTask(characterID);
             }
         } else {
             _clearActiveTask(characterID);
@@ -175,7 +177,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         uint256 targetBlock;
         (attacker, reschedule, targetBlock) = _handleAbility(attacker);
 
-        reschedule = _validatePersistOwnerDuringTask(attacker, true);
+        // reschedule = _validatePersistOwnerDuringTask(attacker, true);
 
         // Reschedule if necessary
         if (reschedule) {
@@ -194,13 +196,11 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         // Load character
         combatant = _loadBattleNad(characterID, true);
         // combatant.owner = _abstractedMsgSender();
-        /*
         if (combatant.owner != _abstractedMsgSender()) {
-            if (!combatant.isMonster()) {
-                revert Errors.InvalidCaller(msg.sender);
-            }
+            // if (!combatant.isMonster()) {
+            revert Errors.InvalidTaskCaller(msg.sender, _abstractedMsgSender(), combatant.owner);
+            // }
         }
-        */
         if (!_isTask()) {
             revert Errors.InvalidCaller(msg.sender);
         }
@@ -232,7 +232,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (success) {
             // Get the task address, flag for storage in the future
             address taskAddress = address(uint160(uint256(taskID)));
-            if (taskAddress != address(0)) {
+            if (_isValidAddress(taskAddress)) {
                 _storeActiveTask(combatant.id, taskID);
             } else {
                 _hackyUpdateTaskID(combatant.id, targetBlock);
@@ -324,8 +324,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
     }
 
     function _restartCombatTask(BattleNad memory combatant) internal override returns (BattleNad memory, bool) {
-        combatant.owner = _loadOwner(combatant.id);
-        if (combatant.owner != _abstractedMsgSender()) {
+        //combatant.owner = _loadOwner(combatant.id);
+        if (!combatant.isMonster() && combatant.owner != _abstractedMsgSender()) {
             revert Errors.InvalidCaller(msg.sender);
         }
         bytes memory data = abi.encodeCall(this.processTurn, (combatant.id));
@@ -336,7 +336,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (success) {
             // Get the task address, flag for storage in the future
             address taskAddress = address(uint160(uint256(taskID)));
-            if (taskAddress != address(0)) {
+            if (_isValidAddress(taskAddress)) {
                 _storeActiveTask(combatant.id, taskID);
                 return (combatant, true);
             }
@@ -359,14 +359,14 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             return combatant;
         }
 
-        if (!_isValidAddress(combatant.owner)) {
+        if (combatant.isMonster() && !_isValidAddress(combatant.owner)) {
             _clearActiveTask(combatant.id);
-            if (!combatant.isMonster()) {
-                AbilityTracker memory activeAbility = _loadAbility(combatant.id);
-                if (_isValidAddress(activeAbility.taskAddress)) {
-                    combatant = _checkClearAbility(combatant);
-                }
+
+            AbilityTracker memory activeAbility = _loadAbility(combatant.id);
+            if (_isValidAddress(activeAbility.taskAddress)) {
+                combatant = _checkClearAbility(combatant);
             }
+
             return combatant;
         }
 
@@ -408,9 +408,17 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             return (hasActiveCombatTask, activeTask);
         }
 
-        if (!!_isValidAddress(combatant.owner)) { }
+        if (!_isValidAddress(combatant.owner)) {
+            return (hasActiveCombatTask, activeTask);
+        }
 
+        bool isTask = _isTask();
         bytes32 taskID = _loadActiveTaskID(combatant.id);
+
+        if (!_isValidID(taskID)) {
+            return (hasActiveCombatTask, activeTask);
+        }
+
         activeTask = address(uint160(uint256(taskID)));
 
         ICustomTaskManager.LoadBalancer memory _loadBal;
@@ -433,14 +441,14 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
                 _deactivateSessionKey(activeTask);
                 _clearActiveTask(combatant.id);
                 activeTask = _EMPTY_ADDRESS;
-            } else if (activeBlock > targetBlock) {
-                _clearActiveTask(combatant.id);
-                if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                    _deactivateSessionKey(activeTask);
-                }
-                activeTask = _EMPTY_ADDRESS;
-            } else {
-                if (key.expiration <= block.number) {
+            } else if (!isTask) {
+                if (activeBlock > targetBlock) {
+                    _clearActiveTask(combatant.id);
+                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(activeTask);
+                    }
+                    activeTask = _EMPTY_ADDRESS;
+                } else if (key.expiration <= block.number) {
                     _clearActiveTask(combatant.id);
                     if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
                         _deactivateSessionKey(activeTask);
@@ -452,7 +460,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             }
         }
 
-        if (!combatant.isMonster()) {
+        if (!combatant.isMonster() && !isTask) {
             AbilityTracker memory activeAbility = _loadAbility(combatant.id);
             if (_isValidAddress(activeAbility.taskAddress)) {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);

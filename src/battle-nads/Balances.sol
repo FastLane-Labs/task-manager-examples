@@ -170,7 +170,7 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
             revert Errors.InvalidCaller(msg.sender);
         }
         if (_oldOwner != combatant.owner || combatant.owner != key.owner) {
-            if (revertIfInvalid && !combatant.isDead()) {
+            if (revertIfInvalid) {
                 revert Errors.InvalidCaller(msg.sender);
             }
             _deactivateSessionKey(msg.sender);

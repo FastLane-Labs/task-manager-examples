@@ -30,6 +30,7 @@ library Errors {
     error CombatantDoesNotExist(uint8 depth, uint8 x, uint8 y, uint8 index);
     error AreaFull(uint8 depth, uint8 x, uint8 y);
     error InvalidCaller(address caller);
+    error InvalidTaskCaller(address task, address taskOwner, address owner);
     error TaskNotScheduled();
     error CharacterNotOwned(bytes32 id);
     error BondedBalanceTooLow(uint256 balance, uint256 needed);

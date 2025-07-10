@@ -21,6 +21,8 @@ import { StatSheet } from "./libraries/StatSheet.sol";
 
 import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
+// import {console} from "forge-std/console.sol";
+
 abstract contract Handler is Balances {
     using Equipment for BattleNad;
     using StatSheet for BattleNad;
@@ -533,7 +535,7 @@ abstract contract Handler is Balances {
         // If it's a monster, update defender's owner to n
         // Only do this if there was a funding issue with prev task
 
-        if (!defender.isDead() && defender.isMonster() && !attacker.isMonster() && _isValidAddress(defender.owner)) {
+        if (defender.isMonster() && !attacker.isMonster() && _isValidAddress(defender.owner)) {
             (bool hasActiveCombatTask,) = _checkClearTasks(defender);
             if (!hasActiveCombatTask && !defender.isDead()) {
                 defender.owner = _EMPTY_ADDRESS;
@@ -704,6 +706,7 @@ abstract contract Handler is Balances {
                 }
                 return (attacker, false, 0);
             }
+
             defender = _loadBattleNad(defender.id, true);
 
             if (defender.isDead()) {
@@ -734,6 +737,20 @@ abstract contract Handler is Balances {
             if (!attackerInCombat || !defenderInCombat) {
                 (attacker, defender) = _enterMutualCombatToTheDeath(attacker, defender);
             }
+        } else {
+            if (attacker.activeAbility.targetIndex != 0 && attacker.activeAbility.ability != Ability.Pray) {
+                revert Errors.AbilityCantHaveTarget();
+            }
+        }
+
+        // Do the ability
+        (attacker, defender, reschedule, nextBlock) = _processAbility(attacker, defender);
+
+        // Flag for update
+        attacker.tracker.updateActiveAbility = true;
+
+        // Store defender
+        if (loadedDefender) {
             if (!defender.isDead() && defender.isMonster() && !attacker.isMonster()) {
                 if (!_isTask()) {
                     (bool scheduledTask,) = _checkClearTasks(defender);
@@ -750,7 +767,7 @@ abstract contract Handler is Balances {
                         }
                     }
                 } else {
-                    if (defender.owner != attacker.owner && _isValidAddress(defender.owner)) {
+                    if (_isValidAddress(defender.owner)) {
                         (bool hasActiveCombatTask,) = _checkClearTasks(defender);
                         if (!hasActiveCombatTask) {
                             defender.owner = _EMPTY_ADDRESS;
@@ -759,20 +776,7 @@ abstract contract Handler is Balances {
                     }
                 }
             }
-        } else {
-            if (attacker.activeAbility.targetIndex != 0 && attacker.activeAbility.ability != Ability.Pray) {
-                revert Errors.AbilityCantHaveTarget();
-            }
-        }
 
-        // Do the ability
-        (attacker, defender, reschedule, nextBlock) = _processAbility(attacker, defender);
-
-        // Flag for update
-        attacker.tracker.updateActiveAbility = true;
-
-        // Store defender
-        if (loadedDefender) {
             if (defender.isDead()) {
                 // NOTE: Monsters cant use abilities, so attacker cant be a monster, so a null area
                 // can be used since no new target is needed.
@@ -780,11 +784,31 @@ abstract contract Handler is Balances {
                 BattleNad memory newDefender;
                 (attacker, newDefender, nullArea) = _processDeathDuringKillerTurn(attacker, defender, nullArea);
 
+                if (
+                    _isValidID(newDefender.id) && newDefender.id != defender.id && newDefender.id != attacker.id
+                        && !newDefender.isDead()
+                ) {
+                    _storeBattleNad(newDefender);
+                }
+
                 // newDefender should be empty since attacker is not a monster
                 // The dead defender was already stored in _processDeathDuringKillerTurn
             } else {
                 // Only store if defender is still alive
                 _storeBattleNad(defender);
+            }
+        }
+
+        if (!attacker.isDead() && !attacker.isMonster() && attacker.isInCombat() && _isTask()) {
+            (bool scheduledTask,) = _checkClearTasks(attacker);
+            if (!scheduledTask) {
+                (attacker, scheduledTask) =
+                    _createOrRescheduleCombatTask(attacker, block.number + _cooldown(attacker.stats));
+                if (!scheduledTask) {
+                    emit Events.TaskNotScheduledInHandler(
+                        2, attacker.id, block.number, block.number + _cooldown(defender.stats)
+                    );
+                }
             }
         }
 
@@ -925,11 +949,15 @@ abstract contract Handler is Balances {
 
                     // CASE: Opponent is legitimately in combat with character
                 } else {
-                    if (opponent.isMonster()) {
+                    if (!combatant.isMonster() && opponent.isMonster()) {
                         (bool hasActiveCombatTask,) = _checkClearTasks(opponent);
                         if (!hasActiveCombatTask && !_isTask()) {
-                            owners[opponent.id] = _abstractedMsgSender();
-                            _restartCombatTask(opponent);
+                            (opponent, hasActiveCombatTask) = _restartCombatTask(opponent);
+                            if (hasActiveCombatTask) {
+                                opponent.owner = _abstractedMsgSender();
+                                opponent.tracker.updateOwner = true;
+                            }
+                            _storeBattleNad(opponent);
                         }
                     }
                 }
