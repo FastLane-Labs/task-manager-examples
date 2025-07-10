@@ -158,8 +158,6 @@ abstract contract Handler is Balances {
             monster = _loadExistingMonster(player, monsterIndex);
         }
 
-        // Flag for combat
-        (monster, player) = _enterMutualCombatToTheDeath(monster, player);
         if (monster.isDead()) {
             player = _exitCombat(player);
             player.stats.nextTargetIndex = 0;
@@ -168,6 +166,9 @@ abstract contract Handler is Balances {
             return player;
         }
 
+        // Flag for combat
+        (monster, player) = _enterMutualCombatToTheDeath(monster, player);
+
         // Create tasks
         bool scheduledTask = false;
 
@@ -175,12 +176,13 @@ abstract contract Handler is Balances {
         if (newMonster) {
             uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
             (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
-            if (!scheduledTask) {
-                monster.owner = _EMPTY_ADDRESS;
+            if (scheduledTask) {
+                monster.owner = player.owner;
                 monster.tracker.updateOwner = true;
+            } else {
                 emit Events.TaskNotScheduledInHandler(3, monster.id, block.number, targetBlock);
             }
-        } else {
+        } else if (!monster.isDead()) {
             // If task is no longer active, start a new one
             (scheduledTask,) = _checkClearTasks(monster);
             if (!scheduledTask || !_isValidAddress(monster.owner)) {
@@ -316,19 +318,17 @@ abstract contract Handler is Balances {
         // Create tasks
         // Only create for attacker and defendant if tasks don't already exist
         (bool scheduledTask,) = _checkClearTasks(defender);
-        if (defender.isMonster()) {
+        if (defender.isMonster() && !defender.isDead()) {
             if (!scheduledTask || !_isValidAddress(defender.owner)) {
-                if (!scheduledTask) {
-                    (defender, scheduledTask) =
-                        _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
-                    if (scheduledTask) {
-                        defender.owner = attacker.owner;
-                        defender.tracker.updateOwner = true;
-                    } else {
-                        emit Events.TaskNotScheduledInHandler(
-                            1, defender.id, block.number, block.number + _cooldown(defender.stats)
-                        );
-                    }
+                (defender, scheduledTask) =
+                    _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+                if (scheduledTask) {
+                    defender.owner = attacker.owner;
+                    defender.tracker.updateOwner = true;
+                } else {
+                    emit Events.TaskNotScheduledInHandler(
+                        1, defender.id, block.number, block.number + _cooldown(defender.stats)
+                    );
                 }
             }
         }
@@ -533,13 +533,11 @@ abstract contract Handler is Balances {
         // If it's a monster, update defender's owner to n
         // Only do this if there was a funding issue with prev task
 
-        if (defender.isMonster() && !attacker.isMonster()) {
-            if (defender.owner != attacker.owner && _isValidAddress(defender.owner)) {
-                (bool hasActiveCombatTask,) = _checkClearTasks(defender);
-                if (!hasActiveCombatTask) {
-                    defender.owner = _EMPTY_ADDRESS;
-                    defender.tracker.updateOwner = true;
-                }
+        if (!defender.isDead() && defender.isMonster() && !attacker.isMonster() && _isValidAddress(defender.owner)) {
+            (bool hasActiveCombatTask,) = _checkClearTasks(defender);
+            if (!hasActiveCombatTask && !defender.isDead()) {
+                defender.owner = _EMPTY_ADDRESS;
+                defender.tracker.updateOwner = true;
             }
         }
 
@@ -554,13 +552,12 @@ abstract contract Handler is Balances {
             // This prevents the bug where the wrong player would be stored later
             if (
                 _isValidID(newDefender.id) && newDefender.id != defender.id && newDefender.id != attacker.id
-                    && !defender.isDead()
+                    && !newDefender.isDead()
             ) {
-                defender = newDefender;
-            } else {
-                // Set defender to empty so we don't store it again at line 526
-                defender.id = bytes32(0);
+                _storeBattleNad(newDefender);
             }
+        } else {
+            _storeBattleNad(defender);
         }
 
         // Handle health regen and storage, then return the necessary data
@@ -583,12 +580,6 @@ abstract contract Handler is Balances {
 
         // Store area
         _storeArea(area, attacker.stats.depth, attacker.stats.x, attacker.stats.y);
-
-        // Store defender (if valid)
-        // Dead defenders were already stored in _processDeathDuringKillerTurn
-        if (_isValidID(defender.id)) {
-            _storeBattleNad(defender);
-        }
 
         return (attacker, reschedule, nextExecutionBlock);
     }
@@ -743,7 +734,7 @@ abstract contract Handler is Balances {
             if (!attackerInCombat || !defenderInCombat) {
                 (attacker, defender) = _enterMutualCombatToTheDeath(attacker, defender);
             }
-            if (defender.isMonster() && !attacker.isMonster()) {
+            if (!defender.isDead() && defender.isMonster() && !attacker.isMonster()) {
                 if (!_isTask()) {
                     (bool scheduledTask,) = _checkClearTasks(defender);
                     if (!scheduledTask || !_isValidAddress(defender.owner)) {

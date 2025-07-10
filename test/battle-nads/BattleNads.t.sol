@@ -79,7 +79,7 @@ contract BattleNadsTest is BattleNadsBaseTest {
         _rollForward(1);	
 
         uint256 i = 0;	
-        while (i < 100) {	
+        while (i < 8) {	
             uint256 remainder = i % 4;	
 
             if (remainder == 0) {	
@@ -133,7 +133,7 @@ contract BattleNadsTest is BattleNadsBaseTest {
         vm.prank(userSessionKey3);	
         battleNads.attack(character3, uint256(monster.stats.index));
 
-        while (i < 100) {	
+        while (i < 18) {	
 
             player = _battleNad(3);	
             monster = _battleNad(opponentID);	

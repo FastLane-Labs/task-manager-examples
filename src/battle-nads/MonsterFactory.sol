@@ -37,10 +37,13 @@ abstract contract MonsterFactory is CharacterFactory {
 
         // Most recent player to enter combat with the monster is its 'owner'
         address owner = owners[monster.id];
+        monster.owner = owner;
+        /*
         monster.owner = player.owner;
         if (monster.owner != owner) {
             monster.tracker.updateOwner = true;
         }
+        */
 
         // Return monster
         return monster;
@@ -88,8 +91,11 @@ abstract contract MonsterFactory is CharacterFactory {
         monster.tracker.updateStats = true;
 
         // Update the owner
-        monster.owner = player.owner;
-        owners[monster.id] = player.owner;
+        // monster.owner = player.owner;
+        // owners[monster.id] = player.owner;
+        monster.owner = _EMPTY_ADDRESS;
+        //monster.tracker.updateOwner = true;
+        //owners[monster.id] = _EMPTY_ADDRESS;
         characterTasks[monster.id] = _NULL_ID;
         killMap[monster.id] = _UNKILLED;
 

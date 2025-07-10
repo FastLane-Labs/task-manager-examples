@@ -69,9 +69,9 @@ contract Constants {
     uint8 internal constant NO_COMBAT_ZONE_SPACING = 5;
     uint256 internal constant RESERVED_BOSS_INDEX = 1;
 
-    uint256 internal constant DAMAGE_DILUTION_FACTOR = 620;
-    uint256 internal constant ABILITY_DILUTION_FACTOR = 780;
-    uint256 internal constant HEALING_DILUTION_FACTOR = 420;
+    uint256 internal constant DAMAGE_DILUTION_FACTOR = 760;
+    uint256 internal constant ABILITY_DILUTION_FACTOR = 880;
+    uint256 internal constant HEALING_DILUTION_FACTOR = 460;
     uint256 internal constant DAMAGE_DILUTION_BASE = 1000;
 
     // BALANCES

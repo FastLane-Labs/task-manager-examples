@@ -67,13 +67,21 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         uint256 targetBlock;
         (attacker, reschedule, targetBlock) = _handleCombatTurn(attacker);
 
-        reschedule = _validatePersistOwnerDuringTask(attacker, false);
+        // If attacker exited combat then the keys are invalidated at that point
+        if (attacker.isInCombat()) {
+            reschedule = _validatePersistOwnerDuringTask(attacker, false);
+        }
 
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleCombatTask(attacker, targetBlock);
             if (!reschedule) {
                 emit Events.TaskNotScheduledInTaskHandler(20, attacker.id, block.number, targetBlock);
+                if (attacker.isMonster()) {
+                    attacker.owner = _EMPTY_ADDRESS;
+                    attacker.tracker.updateOwner = true;
+                    _clearActiveTask(characterID);
+                }
             }
         } else {
             _clearActiveTask(characterID);
@@ -208,7 +216,11 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         returns (BattleNad memory, bool)
     {
         if (!_isValidAddress(combatant.owner)) {
-            revert Errors.CharacterNotOwned(combatant.id);
+            if (_isTask()) {
+                return (combatant, false);
+            } else if (!combatant.isMonster()) {
+                revert Errors.CharacterNotOwned(combatant.id);
+            }
         }
 
         // Calculate the maximum payment
@@ -347,14 +359,21 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             return combatant;
         }
 
+        if (!_isValidAddress(combatant.owner)) {
+            _clearActiveTask(combatant.id);
+            if (!combatant.isMonster()) {
+                AbilityTracker memory activeAbility = _loadAbility(combatant.id);
+                if (_isValidAddress(activeAbility.taskAddress)) {
+                    combatant = _checkClearAbility(combatant);
+                }
+            }
+            return combatant;
+        }
+
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         address activeTask = address(uint160(uint256(taskID)));
 
         combatant.activeTask.taskAddress = activeTask;
-
-        if (!_isValidAddress(combatant.owner)) {
-            combatant.owner = _loadOwner(combatant.id);
-        }
 
         if (_isValidAddress(activeTask)) {
             _clearActiveTask(combatant.id);
@@ -388,6 +407,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (!_isValidID(combatant.id)) {
             return (hasActiveCombatTask, activeTask);
         }
+
+        if (!!_isValidAddress(combatant.owner)) { }
 
         bytes32 taskID = _loadActiveTaskID(combatant.id);
         activeTask = address(uint160(uint256(taskID)));
