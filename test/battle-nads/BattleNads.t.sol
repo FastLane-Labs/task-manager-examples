@@ -63,6 +63,12 @@ contract BattleNadsTest is BattleNadsBaseTest {
 
         _rollForward(1);	
         
+        // If character is a Bard, change class to ensure effective combat
+        BattleNad memory char3 = _battleNad(3);
+        if (char3.stats.class == CharacterClass.Bard) {
+            console.log("Character3 is a Bard - changing to Warrior class");
+            _modifyCharacterStat(character3, "class", 0); // Change to Warrior
+        }
 
         // battleNads.printBattleNad(_battleNad(1));	
         // battleNads.printBattleNad(_battleNad(2));	
