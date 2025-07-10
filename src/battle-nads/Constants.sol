@@ -67,6 +67,7 @@ contract Constants {
     uint256 internal constant DEFAULT_AGGRO_CHANCE = 18; // out of 255 - spawns a new monster
     uint256 internal constant STARTING_OCCUPANT_THRESHOLD = 16;
     uint8 internal constant NO_COMBAT_ZONE_SPACING = 5;
+    uint256 internal constant RESERVED_BOSS_INDEX = 1;
 
     uint256 internal constant DAMAGE_DILUTION_FACTOR = 620;
     uint256 internal constant ABILITY_DILUTION_FACTOR = 780;

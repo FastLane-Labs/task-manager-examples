@@ -8,8 +8,9 @@ import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 import { IShMonad } from "@fastlane-contracts/shmonad/interfaces/IShMonad.sol";
-
 import { Instances } from "./Instances.sol";
+
+import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
 // These are the entrypoint functions called by the tasks
 abstract contract Balances is GasRelayWithScheduling, Instances {
@@ -154,6 +155,29 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
 
         // Store the BalanceTracker
         balances = balanceTracker;
+    }
+
+    function _validatePersistOwnerDuringTask(
+        BattleNad memory combatant,
+        bool revertIfInvalid
+    )
+        internal
+        returns (bool reschedule)
+    {
+        address _oldOwner = _abstractedMsgSender();
+        SessionKey memory key = _loadSessionKey(msg.sender);
+        if (key.expiration <= block.number) {
+            revert Errors.InvalidCaller(msg.sender);
+        }
+        if (_oldOwner != combatant.owner || combatant.owner != key.owner) {
+            if (revertIfInvalid) {
+                revert Errors.InvalidCaller(msg.sender);
+            }
+            _deactivateSessionKey(msg.sender);
+            _clearActiveTask(combatant.id);
+            return false;
+        }
+        return true;
     }
 
     function _getMinTaskReserveAmount() internal view returns (uint256 minBondedAmount) {

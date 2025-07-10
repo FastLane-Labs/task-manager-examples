@@ -2,7 +2,15 @@
 pragma solidity 0.8.28;
 
 import {
-    BattleNad, BattleArea, StorageTracker, Inventory, BalanceTracker, Log, AbilityTracker, Ability
+    BattleNad,
+    BattleArea,
+    StorageTracker,
+    Inventory,
+    BalanceTracker,
+    Log,
+    AbilityTracker,
+    Ability,
+    CharacterClass
 } from "./Types.sol";
 
 import { Balances } from "./Balances.sol";
@@ -152,6 +160,13 @@ abstract contract Handler is Balances {
 
         // Flag for combat
         (monster, player) = _enterMutualCombatToTheDeath(monster, player);
+        if (monster.isDead()) {
+            player = _exitCombat(player);
+            player.stats.nextTargetIndex = 0;
+            player.tracker.updateStats = true;
+            _storeArea(area, newDepth, newX, newY);
+            return player;
+        }
 
         // Create tasks
         bool scheduledTask = false;
@@ -161,17 +176,20 @@ abstract contract Handler is Balances {
             uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
             (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
             if (!scheduledTask) {
+                monster.owner = _EMPTY_ADDRESS;
+                monster.tracker.updateOwner = true;
                 emit Events.TaskNotScheduledInHandler(3, monster.id, block.number, targetBlock);
             }
         } else {
             // If task is no longer active, start a new one
             (scheduledTask,) = _checkClearTasks(monster);
-            if (!scheduledTask) {
-                monster.owner = player.owner;
-                monster.tracker.updateOwner = true;
-                uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
+            if (!scheduledTask || !_isValidAddress(monster.owner)) {
+                uint256 targetBlock = block.number + _cooldown(monster.stats);
                 (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
-                if (!scheduledTask) {
+                if (scheduledTask) {
+                    monster.owner = player.owner;
+                    monster.tracker.updateOwner = true;
+                } else {
                     emit Events.TaskNotScheduledInHandler(4, monster.id, block.number, targetBlock);
                 }
             }
@@ -281,6 +299,12 @@ abstract contract Handler is Balances {
             bytes32 defenderTargetID =
                 areaCombatants[defender.stats.depth][defender.stats.x][defender.stats.y][defender.stats.nextTargetIndex];
             if (!_isValidID(defenderTargetID)) {
+                uint256 defenderBitmap = uint256(defender.stats.combatantBitMap);
+                uint256 targetBit = 1 << uint256(defender.stats.nextTargetIndex);
+                if (defenderBitmap & targetBit != 0) {
+                    defenderBitmap &= ~targetBit;
+                    defender.stats.combatantBitMap = uint64(defenderBitmap);
+                }
                 defender.stats.nextTargetIndex = attacker.stats.index;
                 defender.tracker.updateStats = true;
             }
@@ -292,21 +316,20 @@ abstract contract Handler is Balances {
         // Create tasks
         // Only create for attacker and defendant if tasks don't already exist
         (bool scheduledTask,) = _checkClearTasks(defender);
-        if (!scheduledTask) {
-            if (defender.isMonster()) {
-                defender.owner = attacker.owner;
-                defender.tracker.updateOwner = true;
-            }
-            (defender, scheduledTask) = _createOrRescheduleCombatTask(
-                defender, block.number + _cooldown(defender.stats) + COMBAT_COLD_START_DELAY_DEFENDER
-            );
-            if (!scheduledTask) {
-                emit Events.TaskNotScheduledInHandler(
-                    1,
-                    defender.id,
-                    block.number,
-                    block.number + _cooldown(defender.stats) + COMBAT_COLD_START_DELAY_DEFENDER
-                );
+        if (defender.isMonster()) {
+            if (!scheduledTask || !_isValidAddress(defender.owner)) {
+                if (!scheduledTask) {
+                    (defender, scheduledTask) =
+                        _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+                    if (scheduledTask) {
+                        defender.owner = attacker.owner;
+                        defender.tracker.updateOwner = true;
+                    } else {
+                        emit Events.TaskNotScheduledInHandler(
+                            1, defender.id, block.number, block.number + _cooldown(defender.stats)
+                        );
+                    }
+                }
             }
         }
 
@@ -479,7 +502,9 @@ abstract contract Handler is Balances {
 
             // CASE: No combatants remain
             if (!attacker.isInCombat()) {
-                attacker = _checkClearAbility(attacker);
+                if (!attacker.isMonster()) {
+                    attacker = _checkClearAbility(attacker);
+                }
 
                 reschedule = false;
                 nextExecutionBlock = 0;
@@ -505,14 +530,14 @@ abstract contract Handler is Balances {
         // Process attack
         (attacker, defender, log) = _attack(attacker, defender, log);
 
-        // If it's a monster, update defender's owner to most recent attacker
+        // If it's a monster, update defender's owner to n
         // Only do this if there was a funding issue with prev task
+
         if (defender.isMonster() && !attacker.isMonster()) {
-            defender.owner = _loadOwner(defender.id);
-            if (defender.owner != attacker.owner) {
+            if (defender.owner != attacker.owner && _isValidAddress(defender.owner)) {
                 (bool hasActiveCombatTask,) = _checkClearTasks(defender);
                 if (!hasActiveCombatTask) {
-                    defender.owner = attacker.owner;
+                    defender.owner = _EMPTY_ADDRESS;
                     defender.tracker.updateOwner = true;
                 }
             }
@@ -718,6 +743,31 @@ abstract contract Handler is Balances {
             if (!attackerInCombat || !defenderInCombat) {
                 (attacker, defender) = _enterMutualCombatToTheDeath(attacker, defender);
             }
+            if (defender.isMonster() && !attacker.isMonster()) {
+                if (!_isTask()) {
+                    (bool scheduledTask,) = _checkClearTasks(defender);
+                    if (!scheduledTask || !_isValidAddress(defender.owner)) {
+                        (defender, scheduledTask) =
+                            _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+                        if (scheduledTask) {
+                            defender.owner = attacker.owner;
+                            defender.tracker.updateOwner = true;
+                        } else {
+                            emit Events.TaskNotScheduledInHandler(
+                                1, defender.id, block.number, block.number + _cooldown(defender.stats)
+                            );
+                        }
+                    }
+                } else {
+                    if (defender.owner != attacker.owner && _isValidAddress(defender.owner)) {
+                        (bool hasActiveCombatTask,) = _checkClearTasks(defender);
+                        if (!hasActiveCombatTask) {
+                            defender.owner = _EMPTY_ADDRESS;
+                            defender.tracker.updateOwner = true;
+                        }
+                    }
+                }
+            }
         } else {
             if (attacker.activeAbility.targetIndex != 0 && attacker.activeAbility.ability != Ability.Pray) {
                 revert Errors.AbilityCantHaveTarget();
@@ -794,6 +844,8 @@ abstract contract Handler is Balances {
     }
 
     function _combatCheckLoop(BattleNad memory combatant, bool forceRemoveCombat) internal returns (BattleNad memory) {
+        bool isBossEncounter = (combatant.stats.class != CharacterClass.Boss)
+            && (_isBoss(combatant.stats.depth, combatant.stats.x, combatant.stats.y));
         combatant.tracker.updateStats = true;
 
         BattleArea memory area = _loadArea(combatant.stats.depth, combatant.stats.x, combatant.stats.y);
@@ -816,9 +868,18 @@ abstract contract Handler is Balances {
 
         // Can't have an index of 0, start i at 1.
         uint256 targetIndex = uint256(combatant.stats.nextTargetIndex);
-        if (targetIndex == uint256(combatant.stats.index)) targetIndex = 0;
-        if (targetIndex == 0) {
-            targetIndex = uint256(combatant.stats.index) == 1 ? 2 : 1;
+        if (targetIndex < 2) {
+            if (isBossEncounter) {
+                targetIndex = 1; // uint8(RESERVED_BOSS_INDEX)
+            } else {
+                targetIndex = 2;
+            }
+        }
+
+        if (uint256(combatant.stats.index) == targetIndex) {
+            if (++targetIndex > 64) {
+                targetIndex = isBossEncounter ? 1 : 2;
+            }
         }
 
         while (gasleft() > 215_000 && combatantBitmap != 0) {
@@ -885,7 +946,7 @@ abstract contract Handler is Balances {
             // Increment loop
             unchecked {
                 if (++targetIndex > 64) {
-                    targetIndex = 1;
+                    targetIndex = isBossEncounter ? 1 : 2;
                 }
             }
             combatant.stats.nextTargetIndex = uint8(targetIndex);

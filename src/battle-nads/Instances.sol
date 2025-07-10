@@ -46,6 +46,16 @@ abstract contract Instances is Combat {
             isBossEncounter ? uint256(area.monsterCount) == 0 : uint256(area.monsterCount) < MAX_MONSTERS_PER_AREA;
         uint256 monsterBitmap = uint256(area.monsterBitMap);
         uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
+
+        // Boss has a reserved index.
+        if (isBossEncounter) {
+            if (monsterBitmap & RESERVED_BOSS_INDEX != 0) {
+                return (uint8(RESERVED_BOSS_INDEX), false);
+            } else {
+                return (uint8(RESERVED_BOSS_INDEX), true);
+            }
+        }
+
         uint256 playerIndex = uint256(player.stats.index);
 
         // See if the player is too high level to generate aggro
@@ -67,12 +77,13 @@ abstract contract Instances is Combat {
 
         uint256 targetIndexBit;
         uint256 targetIndex = playerIndex;
+        if (targetIndex < 2) targetIndex = 2;
 
         do {
             // Pre-Increment loop (monster can't be on same index as player)
             unchecked {
                 if (++targetIndex > 63) {
-                    targetIndex = 1;
+                    targetIndex = 2;
                 }
             }
 
@@ -121,13 +132,14 @@ abstract contract Instances is Combat {
         uint256 combinedBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
         uint256 indexBit;
 
-        if (index == 0) index = 1;
+        // index 1 is reserved for bosses
+        if (index < 2) index = 2;
 
         do {
             // Increment loop
             unchecked {
                 if (++index > 63) {
-                    index = 1;
+                    index = 2;
                 }
             }
 

@@ -148,7 +148,13 @@ abstract contract Combat is MonsterFactory {
     {
         if (attacker.isDead() || defender.isDead()) return false;
         if (attacker.stats.index == defender.stats.index) return false;
-        if (defender.isMonster()) return true;
+        if (defender.isMonster()) {
+            if (!attacker.isMonster()) {
+                return true;
+            } else {
+                return false;
+            }
+        }
         return attacker.stats.level + defender.stats.sumOfCombatantLevels <= (defender.stats.level * 2) + 1;
     }
 
@@ -171,6 +177,9 @@ abstract contract Combat is MonsterFactory {
         uint256 attackerIndex = uint256(attacker.stats.index);
         uint256 targetIndex;
         uint256 targetBit;
+        bool isBossEncounter = (excludedIndex != uint8(RESERVED_BOSS_INDEX))
+            && (attacker.stats.class != CharacterClass.Boss)
+            && (_isBoss(attacker.stats.depth, attacker.stats.x, attacker.stats.y));
 
         // Sanity check against area bitmap
         uint256 areaBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
@@ -181,7 +190,6 @@ abstract contract Combat is MonsterFactory {
         // Monsters can attack any player once they're aggro'd but not each other
         if (attacker.isMonster()) {
             combatantBitmap &= uint256(area.playerBitMap);
-            combatantBitmap &= ~uint256(area.monsterBitMap);
         }
         // Remove any excluded index
         if (excludedIndex != 0) {
@@ -198,9 +206,18 @@ abstract contract Combat is MonsterFactory {
         }
 
         targetIndex = uint256(attacker.stats.nextTargetIndex);
-        if (targetIndex == attackerIndex) targetIndex = 0;
-        if (targetIndex == 0) {
-            targetIndex = attackerIndex == 1 ? 2 : 1;
+        if (targetIndex < 2) {
+            if (isBossEncounter) {
+                targetIndex = 1; // uint8(RESERVED_BOSS_INDEX)
+            } else {
+                targetIndex = 2;
+            }
+        }
+
+        if (attackerIndex == targetIndex) {
+            if (++targetIndex > 64) {
+                targetIndex = isBossEncounter ? 1 : 2;
+            }
         }
 
         do {
@@ -268,7 +285,7 @@ abstract contract Combat is MonsterFactory {
             // Increment loop
             unchecked {
                 if (++targetIndex > 64) {
-                    targetIndex = 1;
+                    targetIndex = isBossEncounter ? 1 : 2;
                 }
             }
         } while (combatantBitmap != 0 && gasleft() > 110_000);

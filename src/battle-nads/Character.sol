@@ -328,17 +328,21 @@ abstract contract Character is Abilities {
         if (combatant.stats.health > 3) {
             combatant = _outOfCombatStatUpdate(combatant);
 
-            combatant.activeTask.taskAddress = _loadActiveTaskAddress(combatant.id);
-            if (_isValidAddress(combatant.activeTask.taskAddress)) {
-                _clearKey(combatant, combatant.activeTask.taskAddress);
+            if (!combatant.isMonster()) {
+                combatant.activeTask.taskAddress = _loadActiveTaskAddress(combatant.id);
+                if (_isValidAddress(combatant.activeTask.taskAddress)) {
+                    _clearKey(combatant, combatant.activeTask.taskAddress);
+                }
+                _clearActiveTask(combatant.id);
+                combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
+                combatant.tracker.updateActiveTask = false;
+                combatant = _checkClearAbility(combatant);
             }
-            _clearActiveTask(combatant.id);
-            combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
-            combatant.tracker.updateActiveTask = false;
+        } else {
+            if (!combatant.isMonster()) {
+                combatant = _checkClearAbility(combatant);
+            }
         }
-
-        combatant = _checkClearAbility(combatant);
-
         return combatant;
     }
 

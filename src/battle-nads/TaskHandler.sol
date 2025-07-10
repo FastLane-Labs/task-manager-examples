@@ -67,6 +67,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         uint256 targetBlock;
         (attacker, reschedule, targetBlock) = _handleCombatTurn(attacker);
 
+        reschedule = _validatePersistOwnerDuringTask(attacker, false);
+
         // Set reschedule lock for reimbursement call afterwards
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleCombatTask(attacker, targetBlock);
@@ -165,6 +167,8 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         uint256 targetBlock;
         (attacker, reschedule, targetBlock) = _handleAbility(attacker);
 
+        reschedule = _validatePersistOwnerDuringTask(attacker, true);
+
         // Reschedule if necessary
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, targetBlock);
@@ -182,9 +186,13 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         // Load character
         combatant = _loadBattleNad(characterID, true);
         // combatant.owner = _abstractedMsgSender();
+        /*
         if (combatant.owner != _abstractedMsgSender()) {
-            revert Errors.InvalidCaller(msg.sender);
+            if (!combatant.isMonster()) {
+                revert Errors.InvalidCaller(msg.sender);
+            }
         }
+        */
         if (!_isTask()) {
             revert Errors.InvalidCaller(msg.sender);
         }
@@ -398,20 +406,19 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         uint64 activeBlock = uint64(_loadBal.activeBlockMedium);
         uint64 targetBlock = uint64(uint256(taskID) >> 160);
 
-        if (!_isValidAddress(combatant.owner)) {
-            combatant.owner = _loadOwner(combatant.id);
-        }
-
         if (_isValidAddress(activeTask)) {
-            if (activeBlock > targetBlock) {
+            SessionKey memory key = _loadSessionKey(activeTask);
+            if (combatant.owner != key.owner) {
+                _deactivateSessionKey(activeTask);
                 _clearActiveTask(combatant.id);
-                SessionKey memory key = _loadSessionKey(activeTask);
+                activeTask = _EMPTY_ADDRESS;
+            } else if (activeBlock > targetBlock) {
+                _clearActiveTask(combatant.id);
                 if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
                     _deactivateSessionKey(activeTask);
                 }
                 activeTask = _EMPTY_ADDRESS;
             } else {
-                SessionKey memory key = _loadSessionKey(activeTask);
                 if (key.expiration <= block.number) {
                     _clearActiveTask(combatant.id);
                     if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
