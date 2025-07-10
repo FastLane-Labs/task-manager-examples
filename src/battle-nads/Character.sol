@@ -29,7 +29,11 @@ abstract contract Character is Abilities {
         uint256 cooldownRoll = uint256(0xff) & uint256(randomSeed >> 120);
 
         // Scale up the seed with level to prevent power creep
-        cooldownRoll = (cooldownRoll / 2) + uint256(stats.level);
+        if (stats.class == CharacterClass.Rogue) {
+            cooldownRoll = (cooldownRoll + uint256(stats.level)) / 2;
+        } else {
+            cooldownRoll = (cooldownRoll / 2) + uint256(stats.level);
+        }
 
         cooldown = DEFAULT_TURN_TIME;
 
@@ -40,6 +44,10 @@ abstract contract Character is Abilities {
         }
 
         if (quickness * 2 + uint256(stats.dexterity) + luck + uint256(stats.level) > cooldownRoll) {
+            --cooldown;
+        }
+
+        if (stats.class == CharacterClass.Bard && cooldown > MIN_TURN_TIME) {
             --cooldown;
         }
 
@@ -115,6 +123,10 @@ abstract contract Character is Abilities {
 
         if (!defeatedIsMonster) {
             experienceEarned *= PVP_EXP_BONUS_FACTOR;
+        }
+
+        if (victor.stats.class == CharacterClass.Bard) {
+            experienceEarned *= 4;
         }
 
         log.experience = uint16(experienceEarned);

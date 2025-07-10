@@ -31,8 +31,8 @@ contract Constants {
     uint256 internal constant MONSTER_VITALITY_HEALTH_MODIFIER = 60;
     uint256 internal constant MONSTER_STURDINESS_HEALTH_MODIFIER = 40;
 
-    uint256 internal constant DEFAULT_TURN_TIME = 4;
-    uint256 internal constant MIN_TURN_TIME = 2;
+    uint256 internal constant DEFAULT_TURN_TIME = 3;
+    uint256 internal constant MIN_TURN_TIME = 1;
     uint256 internal constant QUICKNESS_BASELINE = 6;
     uint256 internal constant COMBAT_COLD_START_DELAY_ATTACKER = 3;
     uint256 internal constant COMBAT_COLD_START_DELAY_DEFENDER = 3;

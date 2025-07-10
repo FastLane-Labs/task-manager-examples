@@ -340,7 +340,7 @@ abstract contract Combat is MonsterFactory {
         }
 
         if (combatant.stats.class == CharacterClass.Monk) {
-            targetHealthRegeneration = (targetHealthRegeneration * 5 / 4) + ((uint256(combatant.stats.level) + 3) / 3);
+            targetHealthRegeneration = (targetHealthRegeneration * 4 / 3) + ((uint256(combatant.stats.level) + 3) / 3);
         } else if (combatant.stats.class == CharacterClass.Bard) {
             targetHealthRegeneration = 1;
         }
@@ -550,6 +550,12 @@ abstract contract Combat is MonsterFactory {
             } else {
                 toEvade = toEvade * 8 / 9;
             }
+        } else {
+            if (defender.stats.class == CharacterClass.Monk) {
+                toEvade = toEvade * 6 / 5;
+            } else if (defender.stats.class == CharacterClass.Rogue) {
+                toEvade = toEvade * 4 / 3;
+            }
         }
 
         if (toHit == 0) toHit = 1;
@@ -680,15 +686,20 @@ abstract contract Combat is MonsterFactory {
             rawDamage = (rawDamage * 3 / 2) + 10;
         }
 
-        if (attacker.stats.class == CharacterClass.Warrior && !attacker.isBlocking()) {
-            rawDamage = rawDamage * 105 / 100;
+        if (attacker.stats.class == CharacterClass.Warrior) {
+            if (!attacker.isBlocking()) {
+                rawDamage = rawDamage * 110 / 100;
+            }
+        } else if (attacker.stats.class == CharacterClass.Sorcerer) {
+            if (!isCritical) {
+                rawDamage = rawDamage * 105 / 100;
+            }
+        } else if (attacker.stats.class == CharacterClass.Bard) {
+            rawDamage = rawDamage * 70 / 100;
         }
 
         if (defender.stats.class == CharacterClass.Bard) {
             rawDamage = rawDamage * 110 / 100;
-        }
-        if (attacker.stats.class == CharacterClass.Bard) {
-            rawDamage = rawDamage * 60 / 100;
         }
 
         if (isCritical) {
@@ -700,7 +711,13 @@ abstract contract Combat is MonsterFactory {
             if (attacker.stats.class == CharacterClass.Rogue) {
                 rawDamage = rawDamage * 5 / 3;
             } else {
-                rawDamage = rawDamage * 4 / 3;
+                rawDamage = rawDamage * 9 / 7;
+            }
+
+            if (defender.stats.class == CharacterClass.Warrior) {
+                rawDamage = rawDamage * 4 / 5;
+            } else if (defender.stats.class == CharacterClass.Monk) {
+                rawDamage = rawDamage * 7 / 8;
             }
         }
 
@@ -727,8 +744,13 @@ abstract contract Combat is MonsterFactory {
         internal
         returns (BattleNad memory, Log memory)
     {
-        // NOTE: Players and monsters only drop their equipped items
-        uint256 vanquishedWeaponBit = 1 << uint256(vanquished.stats.weaponID);
+        // NOTE: Players and monsters only drop their equipped items... unless youre a bard
+        uint256 vanquishedWeaponID = uint256(vanquished.stats.weaponID);
+        if (vanquished.isMonster() && winner.stats.class == CharacterClass.Bard) {
+            vanquishedWeaponID += (((uint256(MAX_WEAPON_ID) - vanquishedWeaponID) / 5) + 1);
+        }
+
+        uint256 vanquishedWeaponBit = 1 << vanquishedWeaponID;
         uint256 weaponBitmap = uint256(winner.inventory.weaponBitmap);
         if (weaponBitmap & vanquishedWeaponBit == 0) {
             // emit Events.LootedNewWeapon(winner.areaID(), winner.id, vanquished.stats.weaponID,
@@ -739,7 +761,11 @@ abstract contract Combat is MonsterFactory {
             log.lootedWeaponID = vanquished.stats.weaponID;
         }
 
-        uint256 vanquishedArmorBit = 1 << uint256(vanquished.stats.armorID);
+        uint256 vanquishedArmorID = uint256(vanquished.stats.armorID);
+        if (vanquished.isMonster() && winner.stats.class == CharacterClass.Bard) {
+            vanquishedArmorID += (((uint256(MAX_ARMOR_ID) - vanquishedArmorID) / 5) + 1);
+        }
+        uint256 vanquishedArmorBit = 1 << vanquishedArmorID;
         uint256 armorBitmap = uint256(winner.inventory.armorBitmap);
         if (armorBitmap & vanquishedArmorBit == 0) {
             // emit Events.LootedNewArmor(winner.areaID(), winner.id, vanquished.stats.armorID, vanquished.armor.name);
