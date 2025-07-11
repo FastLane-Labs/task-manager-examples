@@ -538,6 +538,7 @@ abstract contract Handler is Balances {
         // If it's a monster, update defender's owner to n
         // Only do this if there was a funding issue with prev task
 
+        /*
         if (defender.isMonster() && !attacker.isMonster() && _isValidAddress(defender.owner)) {
             bool hasActiveCombatTask;
             (defender, hasActiveCombatTask,) = _checkClearTasks(defender);
@@ -546,6 +547,7 @@ abstract contract Handler is Balances {
                 defender.tracker.updateOwner = true;
             }
         }
+        */
 
         // Check if defender died and handle that case
         if (defender.isDead()) {
@@ -667,7 +669,8 @@ abstract contract Handler is Balances {
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, nextBlock);
             if (!reschedule) {
-                revert Errors.TaskNotRescheduled();
+                // revert Errors.TaskNotRescheduled();
+                attacker = _checkClearAbility(attacker);
             }
         }
 
@@ -737,10 +740,10 @@ abstract contract Handler is Balances {
                 revert Errors.AbilityMustHaveTarget();
             }
 
-            (bool attackerInCombat, bool defenderInCombat) = _isCurrentlyInCombat(attacker, defender);
-            if (!attackerInCombat || !defenderInCombat) {
-                (attacker, defender) = _enterMutualCombatToTheDeath(attacker, defender);
-            }
+            //(bool attackerInCombat, bool defenderInCombat) = _isCurrentlyInCombat(attacker, defender);
+            //if (!attackerInCombat || !defenderInCombat) {
+            (attacker, defender) = _enterMutualCombatToTheDeath(attacker, defender);
+            //}
         } else {
             if (attacker.activeAbility.targetIndex != 0 && attacker.activeAbility.ability != Ability.Pray) {
                 revert Errors.AbilityCantHaveTarget();
@@ -753,6 +756,7 @@ abstract contract Handler is Balances {
         // Flag for update
         attacker.tracker.updateActiveAbility = true;
 
+        /*
         // Store defender
         if (loadedDefender) {
             if (!defender.isDead() && defender.isMonster() && !attacker.isMonster()) {
@@ -804,8 +808,9 @@ abstract contract Handler is Balances {
                 _storeBattleNad(defender);
             }
         }
+        */
 
-        if (!attacker.isDead() && !attacker.isMonster() && attacker.isInCombat() && _isTask()) {
+        if (!attacker.isDead() && !attacker.isMonster() && attacker.isInCombat() && !_isTask()) {
             bool scheduledTask;
             (attacker, scheduledTask,) = _checkClearTasks(attacker);
             if (!scheduledTask) {
@@ -813,7 +818,7 @@ abstract contract Handler is Balances {
                     _createOrRescheduleCombatTask(attacker, block.number + _cooldown(attacker.stats));
                 if (!scheduledTask) {
                     emit Events.TaskNotScheduledInHandler(
-                        2, attacker.id, block.number, block.number + _cooldown(defender.stats)
+                        2, attacker.id, block.number, block.number + _cooldown(attacker.stats)
                     );
                 }
             }
