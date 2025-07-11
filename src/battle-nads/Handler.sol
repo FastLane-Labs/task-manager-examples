@@ -760,9 +760,10 @@ abstract contract Handler is Balances {
         // Flag for update
         attacker.tracker.updateActiveAbility = true;
 
-        /*
+        
         // Store defender
         if (loadedDefender) {
+            /*
             if (!defender.isDead() && defender.isMonster() && !attacker.isMonster()) {
                 if (!_isTask()) {
                     bool scheduledTask;
@@ -790,7 +791,7 @@ abstract contract Handler is Balances {
                     }
                 }
             }
-
+            */
             if (defender.isDead()) {
                 // NOTE: Monsters cant use abilities, so attacker cant be a monster, so a null area
                 // can be used since no new target is needed.
@@ -812,7 +813,6 @@ abstract contract Handler is Balances {
                 _storeBattleNad(defender);
             }
         }
-        */
 
         /*
         if (!attacker.isDead() && !attacker.isMonster() && attacker.isInCombat() && !_isTask()) {
