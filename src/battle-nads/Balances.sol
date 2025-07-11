@@ -4,11 +4,13 @@ pragma solidity 0.8.28;
 import { BattleNad, BattleNadStats, Inventory, BalanceTracker, Log } from "./Types.sol";
 
 import { GasRelayWithScheduling } from "lib/fastlane-contracts/src/common/relay/GasRelayWithScheduling.sol";
+import { GasRelayHelper } from "lib/fastlane-contracts/src/common/relay/core/GasRelayHelper.sol";
 import { Errors } from "./libraries/Errors.sol";
 import { Events } from "./libraries/Events.sol";
 import { StatSheet } from "./libraries/StatSheet.sol";
 import { IShMonad } from "@fastlane-contracts/shmonad/interfaces/IShMonad.sol";
 import { Instances } from "./Instances.sol";
+import { Character } from "./Character.sol";
 
 import { SessionKey } from "lib/fastlane-contracts/src/common/relay/types/GasRelayTypes.sol";
 
@@ -178,6 +180,10 @@ abstract contract Balances is GasRelayWithScheduling, Instances {
             return false;
         }
         return true;
+    }
+
+    function _loadUnderlyingSenderData() internal view override returns (address underlyingMsgSender, bool isTask) {
+        (underlyingMsgSender,, isTask,) = GasRelayHelper._loadUnderlyingMsgSenderData();
     }
 
     function _getMinTaskReserveAmount() internal view returns (uint256 minBondedAmount) {

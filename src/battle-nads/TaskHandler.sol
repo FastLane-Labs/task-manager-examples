@@ -402,24 +402,17 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
     function _checkClearTasks(BattleNad memory combatant)
         internal
         override
-        returns (bool hasActiveCombatTask, address activeTask)
+        returns (BattleNad memory, bool hasActiveCombatTask, address activeTask)
     {
         if (!_isValidID(combatant.id)) {
-            return (hasActiveCombatTask, activeTask);
+            return (combatant, hasActiveCombatTask, activeTask);
         }
 
         if (!_isValidAddress(combatant.owner)) {
-            return (hasActiveCombatTask, activeTask);
+            return (combatant, hasActiveCombatTask, activeTask);
         }
 
-        bool isTask = _isTask();
-        bytes32 taskID = _loadActiveTaskID(combatant.id);
-
-        if (!_isValidID(taskID)) {
-            return (hasActiveCombatTask, activeTask);
-        }
-
-        activeTask = address(uint160(uint256(taskID)));
+        (address underlyingMsgSender, bool isTask) = _loadUnderlyingSenderData();
 
         ICustomTaskManager.LoadBalancer memory _loadBal;
         try ICustomTaskManager(TASK_MANAGER).S_loadBalancer() returns (ICustomTaskManager.LoadBalancer memory __loadBal)
@@ -429,11 +422,72 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             emit Events.LoadBalancerLoadingError(err);
 
             // Indicates external need for fix
-            return (combatant.isInCombat() && _isValidAddress(activeTask), activeTask);
+            return (combatant, combatant.isInCombat() && _isValidAddress(activeTask), activeTask);
         }
 
         uint64 activeBlock = uint64(_loadBal.activeBlockMedium);
+
+        if (!combatant.isMonster()) {
+            if (!_isValidAddress(combatant.activeAbility.taskAddress)) {
+                combatant.activeAbility = _loadAbility(combatant.id);
+            }
+
+            if (_isValidAddress(combatant.activeAbility.taskAddress)) {
+                if (underlyingMsgSender != combatant.activeAbility.taskAddress) {
+                    SessionKey memory key = _loadSessionKey(combatant.activeAbility.taskAddress);
+                    if (key.expiration <= block.number) {
+                        combatant = _checkClearAbility(combatant);
+                        if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                            _deactivateSessionKey(combatant.activeAbility.taskAddress);
+                        }
+                    } else if (activeBlock > combatant.activeAbility.targetBlock) {
+                        combatant = _checkClearAbility(combatant);
+                        if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                            _deactivateSessionKey(combatant.activeAbility.taskAddress);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (_isValidAddress(combatant.activeTask.taskAddress)) {
+            if (underlyingMsgSender != combatant.activeTask.taskAddress) {
+                SessionKey memory key = _loadSessionKey(combatant.activeTask.taskAddress);
+                if (key.expiration <= block.number) {
+                    combatant = _checkClearAbility(combatant);
+                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(combatant.activeTask.taskAddress);
+                    }
+                } else if (activeBlock > combatant.activeTask.targetBlock) {
+                    combatant = _checkClearAbility(combatant);
+                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(combatant.activeTask.taskAddress);
+                    }
+                }
+            }
+            return (combatant, true, combatant.activeTask.taskAddress);
+        }
+
+        bytes32 taskID = _loadActiveTaskID(combatant.id);
         uint64 targetBlock = uint64(uint256(taskID) >> 160);
+
+        if (!_isValidID(taskID)) {
+            return (combatant, hasActiveCombatTask, activeTask);
+        }
+
+        activeTask = address(uint160(uint256(taskID)));
+
+        if (isTask && _abstractedMsgSender() == combatant.owner) {
+            SessionKey memory key = _loadSessionKey(activeTask);
+            if (key.owner == combatant.owner && underlyingMsgSender == combatant.activeTask.taskAddress) {
+                if (key.expiration > block.number) {
+                    combatant.activeTask.taskAddress = underlyingMsgSender;
+                    return (combatant, true, underlyingMsgSender);
+                } else {
+                    return (combatant, false, _EMPTY_ADDRESS);
+                }
+            }
+        }
 
         if (_isValidAddress(activeTask)) {
             SessionKey memory key = _loadSessionKey(activeTask);
@@ -459,24 +513,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
                 }
             }
         }
-
-        if (!combatant.isMonster() && !isTask) {
-            AbilityTracker memory activeAbility = _loadAbility(combatant.id);
-            if (_isValidAddress(activeAbility.taskAddress)) {
-                SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
-                if (key.expiration <= block.number) {
-                    combatant = _checkClearAbility(combatant);
-                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                        _deactivateSessionKey(activeAbility.taskAddress);
-                    }
-                } else if (activeBlock > activeAbility.targetBlock + 4) {
-                    combatant = _checkClearAbility(combatant);
-                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                        _deactivateSessionKey(activeAbility.taskAddress);
-                    }
-                }
-            }
-        }
+        return (combatant, hasActiveCombatTask, activeTask);
     }
 
     function areaCleanUp(uint8 depth, uint8 x, uint8 y) public {

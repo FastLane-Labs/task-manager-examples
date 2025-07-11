@@ -328,6 +328,8 @@ abstract contract Character is Abilities {
         if (combatant.stats.health > 3) {
             combatant = _outOfCombatStatUpdate(combatant);
 
+            (address underlyingMsgSender, bool isTask) = _loadUnderlyingSenderData();
+
             // if (!combatant.isMonster()) {
             combatant.activeTask.taskAddress = _loadActiveTaskAddress(combatant.id);
             if (_isValidAddress(combatant.activeTask.taskAddress)) {
@@ -389,7 +391,7 @@ abstract contract Character is Abilities {
     function _checkClearTasks(BattleNad memory combatant)
         internal
         virtual
-        returns (bool hasActiveCombatTask, address activeTask);
+        returns (BattleNad memory, bool hasActiveCombatTask, address activeTask);
 
     function _forceClearTasks(BattleNad memory combatant) internal virtual returns (BattleNad memory);
 
@@ -405,4 +407,6 @@ abstract contract Character is Abilities {
         returns (BattleNad memory, BattleNad memory, Log memory);
 
     function _clearKey(BattleNad memory combatant, address activeTask) internal virtual;
+
+    function _loadUnderlyingSenderData() internal view virtual returns (address underlyingMsgSender, bool isTask);
 }

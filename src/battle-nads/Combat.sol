@@ -94,12 +94,14 @@ abstract contract Combat is MonsterFactory {
         if (beatrice.isDead() || sally.isDead()) {
             return (beatrice, sally);
         }
+        /*
         if (!beatrice.isInCombat()) {
             beatrice = _outOfCombatStatUpdate(beatrice);
         }
         if (!sally.isInCombat()) {
             sally = _outOfCombatStatUpdate(sally);
         }
+        */
 
         if (sally.stats.index == beatrice.stats.index) {
             return (beatrice, sally);
@@ -115,7 +117,11 @@ abstract contract Combat is MonsterFactory {
             beatrice.stats.combatantBitMap = uint64(beatriceBitmap);
             ++beatrice.stats.combatants;
             if (!beatrice.isMonster()) {
-                beatrice.stats.sumOfCombatantLevels += sally.stats.level;
+                if (uint256(beatrice.stats.sumOfCombatantLevels) + uint256(sally.stats.level) >= type(uint8).max) {
+                    beatrice.stats.sumOfCombatantLevels = uint8(type(uint8).max);
+                } else {
+                    beatrice.stats.sumOfCombatantLevels += sally.stats.level;
+                }
             }
             if (!beatrice.tracker.updateStats) beatrice.tracker.updateStats = true;
         }
@@ -130,7 +136,11 @@ abstract contract Combat is MonsterFactory {
             sally.stats.combatantBitMap = uint64(sallyBitmap);
             ++sally.stats.combatants;
             if (!sally.isMonster()) {
-                sally.stats.sumOfCombatantLevels += beatrice.stats.level;
+                if (uint256(sally.stats.sumOfCombatantLevels) + uint256(beatrice.stats.level) >= type(uint8).max) {
+                    sally.stats.sumOfCombatantLevels = uint8(type(uint8).max);
+                } else {
+                    sally.stats.sumOfCombatantLevels += beatrice.stats.level;
+                }
             }
             if (!sally.tracker.updateStats) sally.tracker.updateStats = true;
         }
@@ -150,6 +160,13 @@ abstract contract Combat is MonsterFactory {
         if (attacker.stats.index == defender.stats.index) return false;
         if (defender.isMonster()) {
             if (!attacker.isMonster()) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        if (attacker.isMonster()) {
+            if (!defender.isMonster()) {
                 return true;
             } else {
                 return false;
@@ -177,8 +194,7 @@ abstract contract Combat is MonsterFactory {
         uint256 attackerIndex = uint256(attacker.stats.index);
         uint256 targetIndex;
         uint256 targetBit;
-        bool isBossEncounter = (excludedIndex != uint8(RESERVED_BOSS_INDEX))
-            && (attacker.stats.class != CharacterClass.Boss)
+        bool isBossEncounter = (excludedIndex != uint8(RESERVED_BOSS_INDEX)) && (!attacker.isMonster())
             && (_isBoss(attacker.stats.depth, attacker.stats.x, attacker.stats.y));
 
         // Sanity check against area bitmap

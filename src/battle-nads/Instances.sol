@@ -41,11 +41,7 @@ abstract contract Instances is Combat {
     {
         // Check if this should spawn a boss
         bool isBossEncounter = prevDepth == player.stats.depth && _isBoss(prevDepth, player.stats.x, player.stats.y);
-        uint256 aggroRange = isBossEncounter ? 64 : DEFAULT_AGGRO_RANGE + uint256(player.stats.depth);
-        bool canSpawnNewMonsters =
-            isBossEncounter ? uint256(area.monsterCount) == 0 : uint256(area.monsterCount) < MAX_MONSTERS_PER_AREA;
         uint256 monsterBitmap = uint256(area.monsterBitMap);
-        uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
 
         // Boss has a reserved index.
         if (isBossEncounter) {
@@ -56,6 +52,10 @@ abstract contract Instances is Combat {
             }
         }
 
+        uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
+        bool canSpawnNewMonsters =
+            isBossEncounter ? uint256(area.monsterCount) == 0 : uint256(area.monsterCount) < MAX_MONSTERS_PER_AREA;
+        uint256 aggroRange = isBossEncounter ? 64 : DEFAULT_AGGRO_RANGE + uint256(player.stats.depth);
         uint256 playerIndex = uint256(player.stats.index);
 
         // See if the player is too high level to generate aggro

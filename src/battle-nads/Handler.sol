@@ -177,23 +177,23 @@ abstract contract Handler is Balances {
         // Only create for monster if task doesn't already exist
         if (newMonster) {
             uint256 targetBlock = block.number + _cooldown(monster.stats) + COMBAT_COLD_START_DELAY_MONSTER;
+            monster.owner = player.owner;
+            monster.tracker.updateOwner = true;
             (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
-            if (scheduledTask) {
-                monster.owner = player.owner;
-                monster.tracker.updateOwner = true;
-            } else {
+            if (!scheduledTask) {
+                monster.owner = _EMPTY_ADDRESS;
                 emit Events.TaskNotScheduledInHandler(3, monster.id, block.number, targetBlock);
             }
         } else if (!monster.isDead()) {
             // If task is no longer active, start a new one
-            (scheduledTask,) = _checkClearTasks(monster);
+            (monster, scheduledTask,) = _checkClearTasks(monster);
             if (!scheduledTask || !_isValidAddress(monster.owner)) {
                 uint256 targetBlock = block.number + _cooldown(monster.stats);
+                monster.owner = player.owner;
+                monster.tracker.updateOwner = true;
                 (monster, scheduledTask) = _createOrRescheduleCombatTask(monster, targetBlock);
-                if (scheduledTask) {
-                    monster.owner = player.owner;
-                    monster.tracker.updateOwner = true;
-                } else {
+                if (!scheduledTask) {
+                    monster.owner = _EMPTY_ADDRESS;
                     emit Events.TaskNotScheduledInHandler(4, monster.id, block.number, targetBlock);
                 }
             }
@@ -319,23 +319,26 @@ abstract contract Handler is Balances {
 
         // Create tasks
         // Only create for attacker and defendant if tasks don't already exist
-        (bool scheduledTask,) = _checkClearTasks(defender);
-        if (defender.isMonster() && !defender.isDead()) {
-            if (!scheduledTask || !_isValidAddress(defender.owner)) {
-                (defender, scheduledTask) =
-                    _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
-                if (scheduledTask) {
-                    defender.owner = attacker.owner;
+        bool scheduledTask;
+        if (!_isValidAddress(defender.owner)) {
+            (defender, scheduledTask,) = _checkClearTasks(defender);
+            if (defender.isMonster() && !defender.isDead()) {
+                if (!scheduledTask) {
+                    defender.owner = _abstractedMsgSender();
                     defender.tracker.updateOwner = true;
-                } else {
-                    emit Events.TaskNotScheduledInHandler(
-                        1, defender.id, block.number, block.number + _cooldown(defender.stats)
-                    );
+                    (defender, scheduledTask) =
+                        _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+                    if (!scheduledTask) {
+                        defender.owner = _EMPTY_ADDRESS;
+                        emit Events.TaskNotScheduledInHandler(
+                            1, defender.id, block.number, block.number + _cooldown(defender.stats)
+                        );
+                    }
                 }
             }
         }
 
-        (scheduledTask,) = _checkClearTasks(attacker);
+        (attacker, scheduledTask,) = _checkClearTasks(attacker);
         if (!scheduledTask) {
             (attacker, scheduledTask) = _createOrRescheduleCombatTask(
                 attacker, block.number + _cooldown(attacker.stats) + COMBAT_COLD_START_DELAY_ATTACKER
@@ -536,7 +539,8 @@ abstract contract Handler is Balances {
         // Only do this if there was a funding issue with prev task
 
         if (defender.isMonster() && !attacker.isMonster() && _isValidAddress(defender.owner)) {
-            (bool hasActiveCombatTask,) = _checkClearTasks(defender);
+            bool hasActiveCombatTask;
+            (defender, hasActiveCombatTask,) = _checkClearTasks(defender);
             if (!hasActiveCombatTask && !defender.isDead()) {
                 defender.owner = _EMPTY_ADDRESS;
                 defender.tracker.updateOwner = true;
@@ -753,14 +757,15 @@ abstract contract Handler is Balances {
         if (loadedDefender) {
             if (!defender.isDead() && defender.isMonster() && !attacker.isMonster()) {
                 if (!_isTask()) {
-                    (bool scheduledTask,) = _checkClearTasks(defender);
+                    bool scheduledTask;
+                    (defender, scheduledTask,) = _checkClearTasks(defender);
                     if (!scheduledTask || !_isValidAddress(defender.owner)) {
+                        defender.owner = _abstractedMsgSender();
+                        defender.tracker.updateOwner = true;
                         (defender, scheduledTask) =
                             _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
-                        if (scheduledTask) {
-                            defender.owner = attacker.owner;
-                            defender.tracker.updateOwner = true;
-                        } else {
+                        if (!scheduledTask) {
+                            defender.owner = _EMPTY_ADDRESS;
                             emit Events.TaskNotScheduledInHandler(
                                 1, defender.id, block.number, block.number + _cooldown(defender.stats)
                             );
@@ -768,7 +773,8 @@ abstract contract Handler is Balances {
                     }
                 } else {
                     if (_isValidAddress(defender.owner)) {
-                        (bool hasActiveCombatTask,) = _checkClearTasks(defender);
+                        bool hasActiveCombatTask;
+                        (defender, hasActiveCombatTask,) = _checkClearTasks(defender);
                         if (!hasActiveCombatTask) {
                             defender.owner = _EMPTY_ADDRESS;
                             defender.tracker.updateOwner = true;
@@ -800,7 +806,8 @@ abstract contract Handler is Balances {
         }
 
         if (!attacker.isDead() && !attacker.isMonster() && attacker.isInCombat() && _isTask()) {
-            (bool scheduledTask,) = _checkClearTasks(attacker);
+            bool scheduledTask;
+            (attacker, scheduledTask,) = _checkClearTasks(attacker);
             if (!scheduledTask) {
                 (attacker, scheduledTask) =
                     _createOrRescheduleCombatTask(attacker, block.number + _cooldown(attacker.stats));
@@ -950,12 +957,14 @@ abstract contract Handler is Balances {
                     // CASE: Opponent is legitimately in combat with character
                 } else {
                     if (!combatant.isMonster() && opponent.isMonster()) {
-                        (bool hasActiveCombatTask,) = _checkClearTasks(opponent);
+                        bool hasActiveCombatTask;
+                        (opponent, hasActiveCombatTask,) = _checkClearTasks(opponent);
                         if (!hasActiveCombatTask && !_isTask()) {
+                            opponent.owner = _abstractedMsgSender();
+                            opponent.tracker.updateOwner = true;
                             (opponent, hasActiveCombatTask) = _restartCombatTask(opponent);
-                            if (hasActiveCombatTask) {
-                                opponent.owner = _abstractedMsgSender();
-                                opponent.tracker.updateOwner = true;
+                            if (!hasActiveCombatTask) {
+                                opponent.owner = _EMPTY_ADDRESS;
                             }
                             _storeBattleNad(opponent);
                         }
@@ -992,7 +1001,9 @@ abstract contract Handler is Balances {
     modifier NotWhileInCombat(BattleNad memory player) {
         {
             if (player.isInCombat()) {
-                (bool hasCombatTask, address activeTask) = _checkClearTasks(player);
+                bool hasCombatTask;
+                address activeTask;
+                (player, hasCombatTask, activeTask) = _checkClearTasks(player);
                 player = _combatCheckLoop(player, false);
                 if (!hasCombatTask && !_isTask() && player.isInCombat()) {
                     bool restarted;
