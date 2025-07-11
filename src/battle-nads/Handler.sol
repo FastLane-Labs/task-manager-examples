@@ -771,7 +771,7 @@ abstract contract Handler is Balances {
                         defender.owner = _abstractedMsgSender();
                         defender.tracker.updateOwner = true;
                         (defender, scheduledTask) =
-            _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
+                        _createOrRescheduleCombatTask(defender, block.number + _cooldown(defender.stats));
                         if (!scheduledTask) {
                             defender.owner = _EMPTY_ADDRESS;
                             emit Events.TaskNotScheduledInHandler(
