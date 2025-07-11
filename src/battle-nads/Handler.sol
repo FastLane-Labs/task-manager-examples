@@ -507,10 +507,6 @@ abstract contract Handler is Balances {
 
             // CASE: No combatants remain
             if (!attacker.isInCombat()) {
-                //if (!attacker.isMonster()) {
-                //    attacker = _checkClearAbility(attacker);
-                //}
-
                 reschedule = false;
                 nextExecutionBlock = 0;
 
@@ -624,13 +620,11 @@ abstract contract Handler is Balances {
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, nextBlock);
             if (!reschedule) {
-                attacker = _checkClearAbility(attacker);
                 revert Errors.TaskNotRescheduled();
             }
         } else {
-            attacker = _checkClearAbility(attacker);
+            attacker = _checkClearAbility(attacker, true);
         }
-
         return attacker;
     }
 
@@ -671,11 +665,10 @@ abstract contract Handler is Balances {
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, nextBlock);
             if (!reschedule) {
-                // revert Errors.TaskNotRescheduled();
-                attacker = _checkClearAbility(attacker);
+                revert Errors.TaskNotRescheduled();
             }
         } else {
-            attacker = _checkClearAbility(attacker);
+            attacker = _checkClearAbility(attacker, true);
         }
 
         return attacker;
@@ -687,7 +680,7 @@ abstract contract Handler is Balances {
     {
         // Verify that attacker is still alive
         if (attacker.isDead()) {
-            attacker = _checkClearAbility(attacker);
+            attacker = _checkClearAbility(attacker, true);
             // Process death in combat task
             return (attacker, false, 0);
         }

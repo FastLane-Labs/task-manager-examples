@@ -185,11 +185,11 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, targetBlock);
             if (!reschedule) {
-                attacker = _checkClearAbility(attacker);
+                attacker = _checkClearAbility(attacker, !attacker.isInCombat());
                 emit Events.TaskNotScheduledInTaskHandler(22, attacker.id, block.number, targetBlock);
             }
         } else {
-            attacker = _checkClearAbility(attacker);
+            attacker = _checkClearAbility(attacker, !attacker.isInCombat());
         }
 
         // If successful, store the data
@@ -366,11 +366,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
 
         if (combatant.isMonster() && !_isValidAddress(combatant.owner)) {
             _clearActiveTask(combatant.id);
-
-            AbilityTracker memory activeAbility = _loadAbility(combatant.id);
-            if (_isValidAddress(activeAbility.taskAddress)) {
-                combatant = _checkClearAbility(combatant);
-            }
+            combatant = _checkClearAbility(combatant, true);
 
             return combatant;
         }
@@ -394,7 +390,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
             AbilityTracker memory activeAbility = _loadAbility(combatant.id);
             if (_isValidAddress(activeAbility.taskAddress)) {
                 SessionKey memory key = _loadSessionKey(activeAbility.taskAddress);
-                combatant = _checkClearAbility(combatant);
+                combatant = _checkClearAbility(combatant, true);
                 if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
                     _deactivateSessionKey(activeAbility.taskAddress);
                 }
@@ -431,96 +427,111 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         }
 
         uint64 activeBlock = uint64(_loadBal.activeBlockMedium);
-
-        /*
-        if (!combatant.isMonster()) {
-            if (!_isValidAddress(combatant.activeAbility.taskAddress)) {
-                combatant.activeAbility = _loadAbility(combatant.id);
-            }
-
-            if (_isValidAddress(combatant.activeAbility.taskAddress)) {
-                if (underlyingMsgSender != combatant.activeAbility.taskAddress) {
-                    SessionKey memory key = _loadSessionKey(combatant.activeAbility.taskAddress);
-                    if (key.expiration <= block.number) {
-                        combatant = _checkClearAbility(combatant);
-                        if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                            _deactivateSessionKey(combatant.activeAbility.taskAddress);
-                        }
-                    } else if (activeBlock > combatant.activeAbility.targetBlock) {
-                        combatant = _checkClearAbility(combatant);
-                        if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                            _deactivateSessionKey(combatant.activeAbility.taskAddress);
-                        }
-                    }
-                }
-            }
-        }
-        */
-
-        if (_isValidAddress(combatant.activeTask.taskAddress)) {
-            if (underlyingMsgSender != combatant.activeTask.taskAddress) {
-                SessionKey memory key = _loadSessionKey(combatant.activeTask.taskAddress);
-                if (key.expiration <= block.number) {
-                    combatant = _checkClearAbility(combatant);
-                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                        _deactivateSessionKey(combatant.activeTask.taskAddress);
-                    }
-                } else if (activeBlock > combatant.activeTask.targetBlock) {
-                    combatant = _checkClearAbility(combatant);
-                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                        _deactivateSessionKey(combatant.activeTask.taskAddress);
-                    }
-                }
-            }
-            return (combatant, true, combatant.activeTask.taskAddress);
-        }
-
         bytes32 taskID = _loadActiveTaskID(combatant.id);
-        uint64 targetBlock = uint64(uint256(taskID) >> 160);
 
         if (!_isValidID(taskID)) {
             return (combatant, hasActiveCombatTask, activeTask);
         }
 
+        uint64 targetBlock = uint64(uint256(taskID) >> 160);
         activeTask = address(uint160(uint256(taskID)));
 
-        if (isTask && _abstractedMsgSender() == combatant.owner) {
-            SessionKey memory key = _loadSessionKey(activeTask);
-            if (key.owner == combatant.owner && underlyingMsgSender == combatant.activeTask.taskAddress) {
-                if (key.expiration > block.number) {
-                    combatant.activeTask.taskAddress = underlyingMsgSender;
-                    return (combatant, true, underlyingMsgSender);
-                } else {
-                    return (combatant, false, _EMPTY_ADDRESS);
-                }
-            }
+        if (combatant.activeTask.taskAddress == address(0)) {
+            combatant.activeTask.taskAddress = activeTask;
+        } else if (activeTask != combatant.activeTask.taskAddress) {
+            // Signals that this has already been changed - for edge cases, should not be reachable in prod
+            return (combatant, true, activeTask);
         }
 
-        if (_isValidAddress(activeTask)) {
-            SessionKey memory key = _loadSessionKey(activeTask);
-            if (combatant.owner != key.owner) {
-                _deactivateSessionKey(activeTask);
-                _clearActiveTask(combatant.id);
-                activeTask = _EMPTY_ADDRESS;
-            } else if (!isTask) {
-                if (activeBlock > targetBlock) {
-                    _clearActiveTask(combatant.id);
-                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                        _deactivateSessionKey(activeTask);
-                    }
-                    activeTask = _EMPTY_ADDRESS;
-                } else if (key.expiration <= block.number) {
-                    _clearActiveTask(combatant.id);
-                    if (combatant.owner == key.owner && key.expiration > 0 && key.isTask) {
-                        _deactivateSessionKey(activeTask);
-                    }
-                    activeTask = _EMPTY_ADDRESS;
-                } else {
-                    hasActiveCombatTask = true;
-                }
-            }
+        if (combatant.activeTask.targetBlock == 0) {
+            combatant.activeTask.targetBlock = targetBlock;
         }
-        return (combatant, hasActiveCombatTask, activeTask);
+
+        if (!_isValidAddress(combatant.activeTask.taskAddress)) {
+            return (combatant, false, activeTask);
+        }
+
+        address abstractedSender = _abstractedMsgSender();
+        SessionKey memory key = _loadSessionKey(combatant.activeTask.taskAddress);
+
+        if (underlyingMsgSender == combatant.activeTask.taskAddress) {
+            // CASE: We are evaluating this task inside of itself
+
+            if (key.expiration <= block.number && combatant.owner == key.owner) {
+                if (combatant.owner == key.owner) {
+                    if (key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(combatant.activeTask.taskAddress);
+                    }
+                    combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
+                    combatant.tracker.updateActiveTask = false;
+                    _clearActiveTask(combatant.id);
+                }
+            } else if (abstractedSender != combatant.owner) {
+                if (key.expiration > 0 && key.isTask) {
+                    _deactivateSessionKey(combatant.activeTask.taskAddress);
+                }
+                combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
+                combatant.tracker.updateActiveTask = false;
+                _clearActiveTask(combatant.id);
+            }
+            return (combatant, true, combatant.activeTask.taskAddress);
+        } else if (isTask && abstractedSender == combatant.owner) {
+            // CASE: We are evaluating this task inside of another task with the same owner
+            // is Task
+            // taskPayor == combatant.owner
+            // thisCaller != combatant.activeTask.taskAddress
+
+            if (key.owner == combatant.owner) {
+                // CASE: SessionKey owner is combatant owner
+                if (key.expiration <= block.number || activeBlock > combatant.activeTask.targetBlock) {
+                    if (key.expiration > 0 && key.isTask) {
+                        _deactivateSessionKey(combatant.activeTask.taskAddress);
+                    }
+                    // Dont clear task  - it could clear a new one _clearActiveTask(combatant.id);
+                }
+                return (combatant, true, activeTask);
+            } else {
+                // CASE: SessionKey owner doesn't match combatant owner, probably due to change
+                if (key.expiration > 0 && key.isTask) {
+                    _deactivateSessionKey(combatant.activeTask.taskAddress);
+                }
+                return (combatant, false, _EMPTY_ADDRESS);
+            }
+        } else if (isTask) {
+            // CASE: combatant owner doesn't match call owner
+            // is Task
+            // taskPayor != combatant.owner
+            // thisCaller != combatant.activeTask.taskAddress
+
+            if (key.expiration <= block.number || activeBlock > combatant.activeTask.targetBlock) {
+                if (key.expiration > 0 && key.isTask) {
+                    _deactivateSessionKey(combatant.activeTask.taskAddress);
+                }
+                return (combatant, false, activeTask);
+            }
+            return (combatant, true, activeTask);
+        } else if (abstractedSender == combatant.owner && combatant.owner == key.owner) {
+            // CASE: Not a task call - we know that the caller can be a payor
+            if (key.expiration <= block.number || activeBlock > combatant.activeTask.targetBlock) {
+                if (key.expiration > 0 && key.isTask) {
+                    _deactivateSessionKey(combatant.activeTask.taskAddress);
+                }
+                combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
+                combatant.tracker.updateActiveTask = false;
+                _clearActiveTask(combatant.id);
+                return (combatant, false, _EMPTY_ADDRESS);
+            }
+            return (combatant, true, activeTask);
+        } else {
+            // CASE: Not enough information to do anything consistent - just check expirations.
+            if (key.expiration <= block.number || activeBlock > combatant.activeTask.targetBlock) {
+                if (key.expiration > 0 && key.isTask) {
+                    _deactivateSessionKey(combatant.activeTask.taskAddress);
+                }
+                return (combatant, false, _EMPTY_ADDRESS);
+            }
+            return (combatant, hasActiveCombatTask, activeTask);
+        }
     }
 
     function areaCleanUp(uint8 depth, uint8 x, uint8 y) public {

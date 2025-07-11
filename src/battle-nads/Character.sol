@@ -342,20 +342,38 @@ abstract contract Character is Abilities {
                 combatant.tracker.updateActiveTask = false;
             }
         }
-        combatant = _checkClearAbility(combatant);
+        combatant = _checkClearAbility(combatant, true);
         return combatant;
     }
 
-    function _checkClearAbility(BattleNad memory combatant) internal returns (BattleNad memory) {
+    function _checkClearAbility(BattleNad memory combatant, bool forceClear) internal returns (BattleNad memory) {
+        // load if not loaded
+        if (combatant.activeAbility.taskAddress == address(0)) {
+            combatant.activeAbility = _loadAbility(combatant.id);
+        }
         if (
             _isValidAddress(combatant.activeAbility.taskAddress) || combatant.activeAbility.targetBlock > 0
                 || combatant.activeAbility.stage > 0
         ) {
-            combatant.activeAbility.taskAddress = _EMPTY_ADDRESS;
-            combatant.activeAbility.targetBlock = uint64(0);
-            combatant.activeAbility.stage = 0;
-            combatant.activeAbility.ability = Ability.None;
-            _clearAbility(combatant.id);
+            if (forceClear) {
+                combatant.activeAbility.taskAddress = _EMPTY_ADDRESS;
+                combatant.activeAbility.targetBlock = uint64(0);
+                combatant.activeAbility.stage = 0;
+                combatant.activeAbility.ability = Ability.None;
+                combatant.tracker.updateActiveAbility = false;
+                _clearAbility(combatant.id);
+                return combatant;
+            }
+
+            (address underlyingMsgSender, bool isTask) = _loadUnderlyingSenderData();
+            if (isTask && underlyingMsgSender == combatant.activeAbility.taskAddress) {
+                combatant.activeAbility.taskAddress = _EMPTY_ADDRESS;
+                combatant.activeAbility.targetBlock = uint64(0);
+                combatant.activeAbility.stage = 0;
+                combatant.activeAbility.ability = Ability.None;
+                combatant.tracker.updateActiveAbility = false;
+                _clearAbility(combatant.id);
+            }
         }
         return combatant;
     }
