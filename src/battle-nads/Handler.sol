@@ -507,9 +507,9 @@ abstract contract Handler is Balances {
 
             // CASE: No combatants remain
             if (!attacker.isInCombat()) {
-                if (!attacker.isMonster()) {
-                    attacker = _checkClearAbility(attacker);
-                }
+                //if (!attacker.isMonster()) {
+                //    attacker = _checkClearAbility(attacker);
+                //}
 
                 reschedule = false;
                 nextExecutionBlock = 0;
@@ -573,7 +573,6 @@ abstract contract Handler is Balances {
 
         // CASE: All opponents have been defeated
         if (!attacker.isInCombat()) {
-            attacker = _exitCombat(attacker);
             reschedule = false;
             nextExecutionBlock = 0;
 
@@ -625,8 +624,11 @@ abstract contract Handler is Balances {
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, nextBlock);
             if (!reschedule) {
+                attacker = _checkClearAbility(attacker);
                 revert Errors.TaskNotRescheduled();
             }
+        } else {
+            attacker = _checkClearAbility(attacker);
         }
 
         return attacker;
@@ -672,6 +674,8 @@ abstract contract Handler is Balances {
                 // revert Errors.TaskNotRescheduled();
                 attacker = _checkClearAbility(attacker);
             }
+        } else {
+            attacker = _checkClearAbility(attacker);
         }
 
         return attacker;
@@ -706,11 +710,11 @@ abstract contract Handler is Balances {
                     attacker.stats.combatantBitMap = uint64(attackerBitmap);
                     attacker.tracker.updateStats = true;
                 }
-                if (!attacker.isInCombat()) {
-                    attacker = _exitCombat(attacker);
-                } else {
-                    attacker = _checkClearAbility(attacker);
-                }
+                // if (!attacker.isInCombat()) {
+                // attacker = _exitCombat(attacker);
+                // } else {
+                // attacker = _checkClearAbility(attacker);
+                // }
                 return (attacker, false, 0);
             }
 
@@ -724,11 +728,11 @@ abstract contract Handler is Balances {
                     attacker.stats.combatantBitMap = uint64(attackerBitmap);
                     attacker.tracker.updateStats = true;
                 }
-                if (!attacker.isInCombat()) {
-                    attacker = _exitCombat(attacker);
-                } else {
-                    attacker = _checkClearAbility(attacker);
-                }
+                // if (!attacker.isInCombat()) {
+                // attacker = _exitCombat(attacker);
+                // } else {
+                // attacker = _checkClearAbility(attacker);
+                // }
                 // Return early if target cant be found - process their death in regular combat task.
                 return (attacker, false, 0);
             }
@@ -810,6 +814,7 @@ abstract contract Handler is Balances {
         }
         */
 
+        /*
         if (!attacker.isDead() && !attacker.isMonster() && attacker.isInCombat() && !_isTask()) {
             bool scheduledTask;
             (attacker, scheduledTask,) = _checkClearTasks(attacker);
@@ -823,14 +828,15 @@ abstract contract Handler is Balances {
                 }
             }
         }
+        */
 
-        if (!reschedule) {
-            if (!attacker.isInCombat()) {
-                attacker = _exitCombat(attacker);
-            } else {
-                attacker = _checkClearAbility(attacker);
-            }
-        }
+        // if (!reschedule) {
+        //if (!attacker.isInCombat()) {
+        //    attacker = _exitCombat(attacker);
+        //} else {
+        //attacker = _checkClearAbility(attacker);
+        //}
+        // }
 
         return (attacker, reschedule, nextBlock);
     }

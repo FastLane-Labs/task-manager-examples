@@ -54,9 +54,9 @@ abstract contract Combat is MonsterFactory {
         if (attackerBitmap & defenderBit != 0) {
             attackerBitmap &= ~defenderBit;
             attacker.stats.combatantBitMap = uint64(attackerBitmap);
-            if (!attacker.isInCombat()) {
-                attacker = _exitCombat(attacker);
-            }
+            //if (!attacker.isInCombat()) {
+            //    attacker = _exitCombat(attacker);
+            //}
             // NOTE: To prevent chaining, we only decrement combatants and sumOfCombatantLevels when combat is over
             if (!attacker.tracker.updateStats) attacker.tracker.updateStats = true;
         }
@@ -70,9 +70,9 @@ abstract contract Combat is MonsterFactory {
         if (defenderBitmap & attackerBit != 0) {
             defenderBitmap &= ~attackerBit;
             defender.stats.combatantBitMap = uint64(defenderBitmap);
-            if (!defender.isInCombat()) {
-                defender = _exitCombat(defender);
-            }
+            //if (!defender.isInCombat()) {
+            //    defender = _exitCombat(defender);
+            //}
             // NOTE: To prevent chaining, we only decrement combatants and sumOfCombatantLevels when combat is over
             if (!defender.tracker.updateStats) defender.tracker.updateStats = true;
         }
@@ -216,7 +216,9 @@ abstract contract Combat is MonsterFactory {
         combatantBitmap &= ~(1 << attackerIndex);
 
         if (combatantBitmap == 0) {
-            attacker = _exitCombat(attacker);
+            // attacker = _exitCombat(attacker);
+            attacker.stats.combatantBitMap = uint64(0);
+            attacker.stats.nextTargetIndex = 0;
             BattleNad memory nullDefender;
             return (attacker, nullDefender, area);
         }
@@ -307,12 +309,14 @@ abstract contract Combat is MonsterFactory {
         } while (combatantBitmap != 0 && gasleft() > 110_000);
 
         if (combatantBitmap == 0) {
-            attacker = _exitCombat(attacker);
+            //attacker = _exitCombat(attacker);
+            attacker.stats.combatantBitMap = uint64(0);
+            attacker.stats.nextTargetIndex = uint8(0);
         } else {
             attacker.stats.combatantBitMap = uint64(combatantBitmap);
             attacker.stats.nextTargetIndex = uint8(targetIndex);
             if (attacker.stats.nextTargetIndex == attacker.stats.index) {
-                if (++attacker.stats.nextTargetIndex > 64) attacker.stats.nextTargetIndex = 1;
+                if (++attacker.stats.nextTargetIndex > 64) attacker.stats.nextTargetIndex = isBossEncounter ? 1 : 2;
             }
         }
         BattleNad memory nullDefender;

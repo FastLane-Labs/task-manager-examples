@@ -244,9 +244,9 @@ abstract contract Storage {
         if (character.tracker.died) {
             character.stats.health = 0;
         }
-        if (character.stats.combatantBitMap == uint64(0)) {
-            character = _exitCombat(character);
-        }
+        //if (character.stats.combatantBitMap == uint64(0)) {
+        //    character = _exitCombat(character);
+        //}
         if (character.tracker.updateStats) {
             character = _removeClassStatAdjustments(character);
             _storeBattleNadStats(character.stats, character.id);

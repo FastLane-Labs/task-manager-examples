@@ -75,7 +75,9 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         //}
 
         // Set reschedule lock for reimbursement call afterwards
-        if (reschedule) {
+        if (!reschedule && !attacker.isInCombat()) {
+            attacker = _exitCombat(attacker);
+        } else if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleCombatTask(attacker, targetBlock);
             if (!reschedule) {
                 emit Events.TaskNotScheduledInTaskHandler(20, attacker.id, block.number, targetBlock);
@@ -183,8 +185,11 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
         if (reschedule) {
             (attacker, reschedule) = _createOrRescheduleAbilityTask(attacker, targetBlock);
             if (!reschedule) {
+                attacker = _checkClearAbility(attacker);
                 emit Events.TaskNotScheduledInTaskHandler(22, attacker.id, block.number, targetBlock);
             }
+        } else {
+            attacker = _checkClearAbility(attacker);
         }
 
         // If successful, store the data
@@ -427,6 +432,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
 
         uint64 activeBlock = uint64(_loadBal.activeBlockMedium);
 
+        /*
         if (!combatant.isMonster()) {
             if (!_isValidAddress(combatant.activeAbility.taskAddress)) {
                 combatant.activeAbility = _loadAbility(combatant.id);
@@ -449,6 +455,7 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
                 }
             }
         }
+        */
 
         if (_isValidAddress(combatant.activeTask.taskAddress)) {
             if (underlyingMsgSender != combatant.activeTask.taskAddress) {

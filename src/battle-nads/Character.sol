@@ -332,19 +332,17 @@ abstract contract Character is Abilities {
 
             // if (!combatant.isMonster()) {
             combatant.activeTask.taskAddress = _loadActiveTaskAddress(combatant.id);
-            if (_isValidAddress(combatant.activeTask.taskAddress)) {
+            if (
+                isTask && _isValidAddress(combatant.activeTask.taskAddress)
+                    && combatant.activeTask.taskAddress == underlyingMsgSender
+            ) {
                 _clearKey(combatant, combatant.activeTask.taskAddress);
-            }
-            _clearActiveTask(combatant.id);
-            combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
-            combatant.tracker.updateActiveTask = false;
-            combatant = _checkClearAbility(combatant);
-            //}
-        } else {
-            if (!combatant.isMonster()) {
-                combatant = _checkClearAbility(combatant);
+                _clearActiveTask(combatant.id);
+                combatant.activeTask.taskAddress = _EMPTY_ADDRESS;
+                combatant.tracker.updateActiveTask = false;
             }
         }
+        combatant = _checkClearAbility(combatant);
         return combatant;
     }
 
