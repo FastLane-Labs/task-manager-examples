@@ -47,17 +47,8 @@ abstract contract Instances is Combat {
         // Boss has a reserved index.
         if (isBossEncounter) {
             uint256 bossBit = 1 << RESERVED_BOSS_INDEX;
-            uint256 combinedBossCheck = (monsterBitmap | playerBitmap) & bossBit;
-
-            if (combinedBossCheck != 0) {
-                // Boss index is occupied by either a monster or player
-                // Check if it's a monster that can be loaded
-                if (monsterBitmap & bossBit != 0) {
-                    return (uint8(RESERVED_BOSS_INDEX), false);
-                } else {
-                    // Player is occupying boss slot, can't spawn boss
-                    return (0, false);
-                }
+            if (monsterBitmap & bossBit != 0) {
+                return (uint8(RESERVED_BOSS_INDEX), false);
             } else {
                 return (uint8(RESERVED_BOSS_INDEX), true);
             }
