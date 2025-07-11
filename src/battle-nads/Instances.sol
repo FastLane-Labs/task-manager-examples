@@ -42,17 +42,28 @@ abstract contract Instances is Combat {
         // Check if this should spawn a boss
         bool isBossEncounter = prevDepth == player.stats.depth && _isBoss(prevDepth, player.stats.x, player.stats.y);
         uint256 monsterBitmap = uint256(area.monsterBitMap);
+        uint256 playerBitmap = uint256(area.playerBitMap);
 
         // Boss has a reserved index.
         if (isBossEncounter) {
-            if (monsterBitmap & RESERVED_BOSS_INDEX != 0) {
-                return (uint8(RESERVED_BOSS_INDEX), false);
+            uint256 bossBit = 1 << RESERVED_BOSS_INDEX;
+            uint256 combinedBossCheck = (monsterBitmap | playerBitmap) & bossBit;
+
+            if (combinedBossCheck != 0) {
+                // Boss index is occupied by either a monster or player
+                // Check if it's a monster that can be loaded
+                if (monsterBitmap & bossBit != 0) {
+                    return (uint8(RESERVED_BOSS_INDEX), false);
+                } else {
+                    // Player is occupying boss slot, can't spawn boss
+                    return (0, false);
+                }
             } else {
                 return (uint8(RESERVED_BOSS_INDEX), true);
             }
         }
 
-        uint256 combinedBitmap = uint256(area.playerBitMap) | monsterBitmap;
+        uint256 combinedBitmap = playerBitmap | monsterBitmap;
         bool canSpawnNewMonsters =
             isBossEncounter ? uint256(area.monsterCount) == 0 : uint256(area.monsterCount) < MAX_MONSTERS_PER_AREA;
         uint256 aggroRange = isBossEncounter ? 64 : DEFAULT_AGGRO_RANGE + uint256(player.stats.depth);
