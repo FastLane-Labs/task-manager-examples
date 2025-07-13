@@ -197,19 +197,8 @@ abstract contract Combat is MonsterFactory {
         uint256 attackerIndex = uint256(attacker.stats.index);
         uint256 targetIndex;
         uint256 targetBit;
-        bool isBossEncounter = (excludedIndex != uint8(RESERVED_BOSS_INDEX)) && (!attacker.isMonster())
-            && (_isBoss(attacker.stats.depth, attacker.stats.x, attacker.stats.y));
+        bool isBossEncounter;
 
-        // Sanity check against area bitmap
-        uint256 areaBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
-
-        // Avoid storage load if there's nothing in area bitmap
-        combatantBitmap &= areaBitmap;
-
-        // Monsters can attack any player once they're aggro'd but not each other
-        if (attacker.isMonster()) {
-            combatantBitmap &= uint256(area.playerBitMap);
-        }
         // Remove any excluded index
         if (excludedIndex != 0) {
             combatantBitmap &= ~(1 << uint256(excludedIndex));
@@ -217,6 +206,47 @@ abstract contract Combat is MonsterFactory {
 
         // Remove attacker
         combatantBitmap &= ~(1 << attackerIndex);
+
+        // Monsters can attack any player once they're aggro'd but not each other
+        if (attacker.isMonster()) {
+            combatantBitmap &= uint256(area.playerBitMap);
+        } else {
+            // Sanity check against area bitmap
+            uint256 areaBitmap = uint256(area.playerBitMap) | uint256(area.monsterBitMap);
+
+            // Avoid storage load if there's nothing in area bitmap
+            combatantBitmap &= areaBitmap;
+
+            isBossEncounter = (excludedIndex != uint8(RESERVED_BOSS_INDEX)) && (!attacker.isMonster())
+                && (_isBoss(attacker.stats.depth, attacker.stats.x, attacker.stats.y));
+        }
+
+        if (isBossEncounter) {
+            if (combatantBitmap & (1 << RESERVED_BOSS_INDEX) != 0) {
+                if (targetIndex < 2) {
+                    BattleNad memory defender =
+                        _loadCombatant(attacker.stats.depth, attacker.stats.x, attacker.stats.y, RESERVED_BOSS_INDEX);
+                    if (_isValidID(defender.id) && defender.stats.class == CharacterClass.Boss && !defender.isDead()) {
+                        if (defender.stats.nextTargetIndex == 0) {
+                            defender.stats.nextTargetIndex = attacker.stats.index;
+                        }
+                        uint256 defenderBitmap = uint256(defender.stats.combatantBitMap);
+                        defenderBitmap |= (1 << uint256(attacker.stats.index));
+                        defender.stats.combatantBitMap = uint64(defenderBitmap);
+                        defender.tracker.updateStats = true;
+                        attacker.stats.nextTargetIndex = uint8(RESERVED_BOSS_INDEX);
+                        attacker.stats.combatantBitMap = uint64(combatantBitmap);
+                        return (attacker, defender, area);
+                    } else {
+                        isBossEncounter = false;
+                        combatantBitmap &= ~(1 << RESERVED_BOSS_INDEX);
+                    }
+                } // Don't turn off isBossEncounter here - player might be targeting another player
+            } else {
+                isBossEncounter = false;
+                combatantBitmap &= ~(1 << RESERVED_BOSS_INDEX);
+            }
+        }
 
         if (combatantBitmap == 0) {
             // attacker = _exitCombat(attacker);
@@ -228,11 +258,7 @@ abstract contract Combat is MonsterFactory {
 
         targetIndex = uint256(attacker.stats.nextTargetIndex);
         if (targetIndex < 2) {
-            if (isBossEncounter) {
-                targetIndex = 1; // uint8(RESERVED_BOSS_INDEX)
-            } else {
-                targetIndex = 2;
-            }
+            targetIndex = 2;
         }
 
         if (attackerIndex == targetIndex) {
@@ -292,6 +318,17 @@ abstract contract Combat is MonsterFactory {
                     // CASE: defender not in combat with attacker
                 } else if (uint256(defender.stats.combatantBitMap) & (1 << attackerIndex) == 0) {
                     // Remove from combat
+                    // NOTE: TRYING THIS OUT
+                    if (defender.stats.nextTargetIndex == 0) {
+                        defender.stats.nextTargetIndex = attacker.stats.index;
+                    }
+                    uint256 defenderBitmap = uint256(defender.stats.combatantBitMap);
+                    defenderBitmap |= (1 << uint256(attacker.stats.index));
+                    defender.stats.combatantBitMap = uint64(defenderBitmap);
+                    defender.tracker.updateStats = true;
+                    attacker.stats.combatantBitMap = uint64(combatantBitmap);
+                    attacker.stats.nextTargetIndex = uint8(targetIndex);
+                    return (attacker, defender, area);
 
                     // CASE: valid target
                 } else {
