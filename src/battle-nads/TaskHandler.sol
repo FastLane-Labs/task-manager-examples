@@ -604,11 +604,13 @@ contract TaskHandler is Handler, GeneralReschedulingTask {
 
                     if (combatantBitmap & (~removalBitmap) != combatantBitmap) {
                         combatantBitmap &= ~removalBitmap;
+                        combatant.stats.combatantBitMap = uint64(combatantBitmap);
                         combatant.tracker.updateStats = true;
                     }
 
                     if (combatantBitmap & combinedBitmap != combatantBitmap) {
                         combatantBitmap &= combinedBitmap;
+                        combatant.stats.combatantBitMap = uint64(combatantBitmap);
                         combatant.tracker.updateStats = true;
                     }
 

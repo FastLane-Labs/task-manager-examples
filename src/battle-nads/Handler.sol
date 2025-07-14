@@ -264,7 +264,7 @@ abstract contract Handler is Balances {
         BattleNad memory defender =
             _loadCombatant(attacker.stats.depth, attacker.stats.x, attacker.stats.y, targetIndex);
 
-        if (!_isValidID(defender.id) || !_canEnterMutualCombatToTheDeath(attacker, defender) || defender.isDead()) {
+        if (!_isValidID(defender.id) || !_canEnterMutualCombatToTheDeath(attacker, defender)) {
             uint256 attackerBitmap = uint256(attacker.stats.combatantBitMap);
             uint256 targetBit = 1 << uint256(defender.stats.index);
             if (attackerBitmap & targetBit != 0) {
@@ -305,10 +305,8 @@ abstract contract Handler is Balances {
             if (!_isValidID(defenderTargetID)) {
                 uint256 defenderBitmap = uint256(defender.stats.combatantBitMap);
                 uint256 targetBit = 1 << uint256(defender.stats.nextTargetIndex);
-                if (defenderBitmap & targetBit != 0) {
-                    defenderBitmap &= ~targetBit;
-                    defender.stats.combatantBitMap = uint64(defenderBitmap);
-                }
+                defenderBitmap &= ~targetBit;
+                defender.stats.combatantBitMap = uint64(defenderBitmap);
                 defender.stats.nextTargetIndex = attacker.stats.index;
                 defender.tracker.updateStats = true;
             }
