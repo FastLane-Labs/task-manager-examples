@@ -21,7 +21,8 @@ endif
 .PHONY: all clean install build test test-gas format snapshot anvil size update \
         test-deploy-battle-nads deploy-battle-nads test-execute-tasks execute-tasks \
         fork-test-deploy-battle-nads get-session-key test-battle-nads debug-network \
-        fork-anvil replay-tx get-character get-battle-nad-lite get-battle-nad-lite-by-id
+        fork-anvil replay-tx get-character get-battle-nad-lite get-battle-nad-lite-by-id \
+        check-mon-balances
 
 # Debug target
 debug-network:
@@ -169,6 +170,14 @@ execute-tasks: debug-network
 	forge script script/task-manager/execute-tasks.s.sol:ExecuteTasksScript \
 		--rpc-url $(RPC_URL) \
 		--broadcast \
+		-vvv
+
+# Check MON Balances Target
+check-mon-balances: debug-network
+	@if [ -z "$(RPC_URL)" ]; then echo "No RPC URL found for network $(NETWORK)"; exit 1; fi
+	@echo "Checking MON balances on $(NETWORK)..."
+	forge script script/task-manager/check-mon-balances.s.sol:CheckMonBalancesScript \
+		--rpc-url $(RPC_URL) \
 		-vvv
 
 # Transaction Replay Target
